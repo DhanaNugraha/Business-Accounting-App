@@ -1,0 +1,43 @@
+# =========================
+# Enforce LF for source code
+# =========================
+*.js   text eol=lf
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.jsx  text eol=lf
+*.css  text eol=lf
+*.scss text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.md   text eol=lf
+*.rs   text eol=lf
+*.toml text eol=lf
+
+# =========================
+# Keep binary files untouched
+# =========================
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.svg   binary
+*.webp  binary
+*.db    binary
+*.sqlite binary
+*.sqlite3 binary
+*.pdf   binary
+*.exe   binary
+*.dll   binary
+*.dmg   binary
+*.msi   binary
+*.AppImage binary
+*.deb   binary
+
+# =========================
+# Optional: enforce LF for config/scripts
+# =========================
+*.sh    text eol=lf
+*.env   text eol=lf
