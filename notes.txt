@@ -1,0 +1,23 @@
+
+1. Tauri Integration
+The project is currently a web React app. It needs Tauri setup to become a desktop app with SQLite access.
+2. Database Schema & Seed
+There’s no actual SQLite schema or seed data file yet.
+We need to add:
+Schema migration (accounts, transactions, etc.)
+Seed data for accounts and sample transactions
+3. SQLite Client Integration
+The db client is a stub. For real functionality:
+Use tauri-plugin-sql (recommended for Tauri)
+Or use Drizzle/Prisma if targeting Node.js backend
+Wire up 
+ReportService
+ to the real DB
+4. Navigation & UI
+Only the Reports page exists. Add:
+Navigation (React Router)
+Pages for managing accounts, transactions, settings, etc.
+UI polish for a desktop feel
+
+
+Polish the UI for a desktop feel after navigation/pages are in place.
