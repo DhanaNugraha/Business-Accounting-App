@@ -1,96 +1,51 @@
-# Business Accounting App - Development Roadmap
+# Accounting Web App Development Roadmap
 
-## Backend (Tauri/Rust)
+## Backend Setup
+- [x] Create virtual environment and install dependencies
+- [x] Set up FastAPI application structure
+- [x] Implement template generation (generate_template.py)
+- [x] Create API endpoints in main.py
+  - [x] GET /download-template
+  - [x] POST /upload
+  - [x] POST /download-updated
+- [x] Implement report generation logic
+  - [x] Balance Sheet
+  - [x] Income Statement
+  - [x] Cash Flow Statement
 
-### Database Initialization
-- [x] Create database schema migrations (accounts, transactions, etc.)
-- [x] Implement database initialization on app start
-- [x] Add error handling for database operations
-- [ ] Implement database backup/restore functionality
+## Frontend Setup
+- [x] Set up React + TypeScript + Vite project
+- [x] Install required dependencies (Tailwind, Recharts, etc.)
+- [x] Create UploadPage component
+- [ ] Create ReportsPage component
+  - [ ] Balance Sheet display
+  - [ ] Income Statement with charts
+  - [ ] Cash Flow Statement
+- [x] Set up routing and state management
 
-### Core Services
-- [x] Implement Account service (CRUD operations)
-- [ ] Implement Transaction service (CRUD operations with validation)
-- [ ] Implement Report service (already started, needs integration)
-- [x] Add data validation for all inputs
+## Testing & Validation
+- [ ] Test file upload and processing
+- [ ] Validate report calculations
+- [ ] Test template download
+- [ ] Test updated file download
 
-### Tauri Commands
-- [x] Create Rust commands for database operations
-- [x] Implement proper error handling and result types
-- [x] Add logging for debugging
+## UI/UX Improvements
+- [ ] Add loading states
+- [ ] Implement error handling
+- [ ] Add form validation
+- [ ] Improve responsive design
+  - [ ] Fix mobile layout issues
+  - [ ] Ensure proper scaling on different screen sizes
 
----
-
-## Frontend (React/TypeScript)
-
-### UI/UX Improvements
-- [x] Implement responsive sidebar navigation
-- [x] Add custom scrollbars and smooth scrolling
-- [x] Create consistent button and form component styles
-- [ ] Add loading states and transitions
-
-### State Management
-- [ ] Set up state management (Context API or Zustand)
-- [x] Create hooks for data fetching and mutations
-- [x] Implement loading and error states
-
-### Forms & Validation
-- [ ] Create form components with validation
-- [ ] Implement form state management
-- [ ] Add input masks for currency, dates, etc.
-
-### Pages & Features
-
-#### Accounts
-- [x] Connect to backend service
-- [x] Implement account creation/editing
-- [x] Add account deletion with confirmation
-- [x] Add search and filtering
-
-#### Transactions
-- [ ] Create transaction form with account selection
-- [ ] Implement transaction listing with pagination
-- [ ] Add transaction filtering by date/account/type
-- [ ] Add bulk transaction import/export
-
-#### Reports
-- [ ] Connect to ReportService
-- [ ] Implement date range selection
-- [ ] Add report export (PDF/Excel)
-- [ ] Add report scheduling
-
-#### Settings
-- [ ] Implement settings persistence
-- [ ] Add theme switching (light/dark mode)
-- [ ] Add backup/restore UI
-- [ ] Add company information management
-
----
-
-## Testing
-- [ ] Add unit tests for services
-- [ ] Add integration tests for Tauri commands
-- [ ] Add E2E tests for critical paths
-- [ ] Set up test database for development
-
----
-
-## Build & Deployment
-- [ ] Configure production build
-- [ ] Set up auto-updates
-- [ ] Create installer packages
-- [ ] Add auto-update functionality
+## Current Issues
+- [ ] Resolve source map warnings in development
+- [ ] Fix React Router future flag warnings
+- [ ] Ensure proper error handling for API calls
 
 ## Documentation
-- [ ] Document API endpoints
-- [ ] Add JSDoc to all components and functions
-- [ ] Create user guide
-- [ ] Add developer setup instructions
-
-## Future Enhancements
-- [ ] Multi-currency support
-- [ ] Invoice generation
-- [ ] Receipt scanning with OCR
-- [ ] Bank statement import
-- [ ] User authentication
-- [ ] Multi-user support with roles
+- [ ] Update README with setup instructions
+  - [ ] Backend setup
+  - [ ] Frontend setup
+  - [ ] Development workflow
+- [ ] Add API documentation
+- [ ] Document report calculation methods

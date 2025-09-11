@@ -1,104 +1,112 @@
 # Business Accounting App
 
-A modern, cross-platform desktop application for managing business finances, built with Tauri, React, TypeScript, and SQLite.
+A modern web application for managing business accounting tasks, generating financial reports, and analyzing financial data.
 
 ## Features
 
-- 💼 **Account Management**: Create and manage financial accounts with different types (Asset, Liability, Equity, Income, Expense)
-- 💰 **Transaction Tracking**: Record and categorize financial transactions
-- 📊 **Financial Reports**: Generate reports to analyze your business finances
-- 🖥️ **Cross-Platform**: Works on Windows, macOS, and Linux
-- 🔒 **Local-First**: Your data stays on your machine with SQLite database
-- 🎨 **Modern UI**: Clean, responsive interface built with Tailwind CSS
+- **Template Generation**: Download Excel templates for data entry
+- **File Processing**: Upload and process accounting data
+- **Financial Reports**: Generate Balance Sheet, Income Statement, and Cash Flow Statement
+- **Data Visualization**: Interactive charts for better financial insights
+- **Responsive Design**: Works on desktop and mobile devices
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS
-- **Backend**: Tauri 2.0 (Rust)
-- **Database**: SQLite with rusqlite
-- **State Management**: React Hooks & Context API
-- **Build Tool**: Vite
+### Backend
+- Python 3.11+
+- FastAPI
+- Pandas
+- Uvicorn
 
-## Prerequisites
-
-- Node.js 18+ and npm
-- Rust (latest stable version)
-- [Tauri prerequisites](https://tauri.app/v1/guides/getting-started/prerequisites) for your platform
+### Frontend
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- Recharts
+- React Query
 
 ## Getting Started
 
-1. **Clone the repository**
+### Prerequisites
+
+- Node.js 18+
+- Python 3.11+
+- npm or yarn
+
+### Backend Setup
+
+1. Create and activate a virtual environment:
    ```bash
-   git clone https://github.com/yourusername/business-accounting-app.git
-   cd business-accounting-app
+   python -m venv .venv
+   .venv\Scripts\activate  # Windows
+   # or
+   source .venv/bin/activate  # macOS/Linux
    ```
 
-2. **Install dependencies**
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Start the backend server:
+   ```bash
+   python main.py
+   ```
+   The API will be available at `http://localhost:8000`
+
+### Frontend Setup
+
+1. Navigate to the frontend directory:
+   ```bash
+   cd frontend
+   ```
+
+2. Install dependencies:
    ```bash
    npm install
    ```
 
-3. **Start the development server**
+3. Start the development server:
    ```bash
-   npm run tauri dev
+   npm run dev
    ```
+   The app will be available at `http://localhost:3000`
 
-4. **Build the application**
-   ```bash
-   npm run tauri build
-   ```
+## API Documentation
+
+Once the backend is running, access the interactive API documentation at:
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
 
 ## Project Structure
 
 ```
-.
-├── src/                    # Frontend React application
-│   ├── components/        # Reusable UI components
-│   ├── hooks/             # Custom React hooks
-│   ├── pages/             # Application pages
-│   └── App.tsx            # Main application component
-├── src-tauri/             # Tauri backend
+Business-Accounting-App/
+├── frontend/               # Frontend React application
 │   ├── src/
-│   │   ├── commands/      # Tauri command handlers
-│   │   └── main.rs        # Tauri application entry point
-│   └── Cargo.toml         # Rust dependencies
-└── db/                    # Database migrations and schema
+│   │   ├── components/     # Reusable UI components
+│   │   ├── pages/          # Page components
+│   │   ├── App.tsx         # Main App component
+│   │   └── main.tsx        # Entry point
+│   ├── public/             # Static files
+│   └── package.json        # Frontend dependencies
+│
+├── .venv/                  # Python virtual environment
+├── main.py                 # Backend API server
+├── generate_template.py     # Template generation logic
+├── requirements.txt         # Python dependencies
+└── README.md               # This file
 ```
-
-## Available Scripts
-
-- `npm run dev` - Start the development server
-- `npm run tauri dev` - Start Tauri in development mode
-- `npm run build` - Build the production bundle
-- `npm run tauri build` - Build the desktop application
-- `npm run lint` - Run ESLint
-- `npm run format` - Format code with Prettier
-
-## Database
-
-The application uses SQLite for data storage. The database is automatically created in the user's app data directory when the application first runs.
-
-### Database Schema
-
-- **accounts**: Stores financial accounts
-- **transactions**: Records financial transactions between accounts
-
-## Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Support
+## Contributing
 
-For support, please open an issue in the GitHub repository.
-
----
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
