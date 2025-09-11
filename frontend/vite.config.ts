@@ -9,10 +9,15 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // PostCSS configuration is handled by postcss.config.js
+  css: {
+    postcss: './postcss.config.js',
+  },
   server: {
-    port: 3000,
+    port: 3001,
     host: '0.0.0.0',
     strictPort: true,
+    open: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

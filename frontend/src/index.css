@@ -4,13 +4,24 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  @apply text-gray-900;
+@layer base {
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    @apply text-gray-900 bg-gray-50 min-h-screen;
+  }
+
+  /* Ensure icons inherit text color by default */
+  svg {
+    @apply inline-block fill-current;
+  }
+
+  /* Fix icon alignment in buttons */
+  button svg {
+    @apply align-middle;
+  }
 }
 
 /* Custom scrollbar */

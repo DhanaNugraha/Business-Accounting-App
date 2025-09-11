@@ -17,35 +17,60 @@
 - [x] Set up React + TypeScript + Vite project
 - [x] Install required dependencies (Tailwind, Recharts, etc.)
 - [x] Create UploadPage component
-- [ ] Create ReportsPage component
-  - [ ] Balance Sheet display
-  - [ ] Income Statement with charts
-  - [ ] Cash Flow Statement
+  - [x] Implement drag and drop file upload
+  - [x] Add file validation
+  - [x] Add error handling
+  - [x] Improve accessibility
+- [x] Create ReportsPage component
+  - [x] Balance Sheet display
+  - [x] Income Statement with charts
+  - [x] Cash Flow Statement
+  - [x] Add loading states
+  - [x] Add error handling
 - [x] Set up routing and state management
 
 ## Testing & Validation
+- [ ] Unit tests for backend API
+- [ ] Integration tests for report generation
+- [ ] Frontend component tests
+- [ ] End-to-end tests
 - [ ] Test file upload and processing
 - [ ] Validate report calculations
 - [ ] Test template download
 - [ ] Test updated file download
 
 ## UI/UX Improvements
-- [ ] Add loading states
-- [ ] Implement error handling
-- [ ] Add form validation
+- [x] Add loading states
+- [x] Basic error handling
+- [x] Add form validation
 - [ ] Improve responsive design
   - [ ] Fix mobile layout issues
   - [ ] Ensure proper scaling on different screen sizes
+- [ ] Add tooltips and help text
+- [ ] Implement dark mode
+- [ ] Add success/error notifications
 
 ## Current Issues
 - [ ] Resolve source map warnings in development
 - [ ] Fix React Router future flag warnings
+- [ ] TypeScript type improvements
+  - [ ] Replace 'any' types with proper interfaces
+  - [ ] Add type safety for API responses
 - [ ] Ensure proper error handling for API calls
+- [ ] Add input validation for file uploads
 
 ## Documentation
-- [ ] Update README with setup instructions
-  - [ ] Backend setup
-  - [ ] Frontend setup
-  - [ ] Development workflow
+- [x] Basic README
+- [ ] Update README with:
+  - [ ] Detailed backend setup
+  - [ ] Frontend development workflow
+  - [ ] Deployment instructions
 - [ ] Add API documentation
 - [ ] Document report calculation methods
+- [ ] Add comments to complex components
+
+## Future Enhancements
+- [ ] Support for multiple companies
+- [ ] Custom report generation
+- [ ] Export to PDF/Excel
+- [ ] Email report delivery

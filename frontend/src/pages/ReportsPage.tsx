@@ -30,24 +30,42 @@ const ReportsPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [reports, setReports] = useState<ReportData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
   // Get reports from location state or load from session storage
   useEffect(() => {
-    if (location.state?.reports) {
-      setReports(location.state.reports);
-      // Save to session storage for page refresh
-      sessionStorage.setItem('accountingReports', JSON.stringify(location.state.reports));
-    } else {
-      // Try to load from session storage on page refresh
-      const savedReports = sessionStorage.getItem('accountingReports');
-      if (savedReports) {
-        setReports(JSON.parse(savedReports));
-      } else {
-        // No reports found, redirect to upload
-        navigate('/upload');
+    const loadReports = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        if (location.state?.reports) {
+          setReports(location.state.reports);
+          // Save to session storage for page refresh
+          sessionStorage.setItem('accountingReports', JSON.stringify(location.state.reports));
+        } else {
+          // Try to load from session storage on page refresh
+          const savedReports = sessionStorage.getItem('accountingReports');
+          if (savedReports) {
+            setReports(JSON.parse(savedReports));
+          } else {
+            // No reports found, redirect to upload
+            navigate('/upload');
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error loading reports:', err);
+        setError('Failed to load reports. Please try again.');
+        toast.error('Failed to load reports');
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+
+    loadReports();
   }, [location.state, navigate]);
 
   const handleDownloadUpdated = async () => {
@@ -55,38 +73,105 @@ const ReportsPage = () => {
 
     try {
       setIsDownloading(true);
-      // In a real app, you would get the original file from the server
-      // For demo, we'll use a placeholder file
+      
       const response = await axios.post(
         'http://localhost:8000/download-updated',
-        {},
-        { responseType: 'blob' }
+        { reports }, // Send the current reports data
+        { 
+          responseType: 'blob',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
       );
 
+      // Check if the response is valid
+      if (!response.data) {
+        throw new Error('No data received from server');
+      }
+
+      // Create a blob URL for the file
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `financial_report_${timestamp}.xlsx`;
+      
       link.href = url;
-      link.setAttribute('download', 'accounting_report_updated.xlsx');
+      link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
       
       toast.success('Report downloaded successfully!');
     } catch (error) {
       console.error('Error downloading report:', error);
-      toast.error('Failed to download report');
+      let errorMessage = 'Failed to download report';
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          // Server responded with an error status code
+          errorMessage = `Server error: ${error.response.status} - ${error.response.statusText}`;
+        } else if (error.request) {
+          // Request was made but no response received
+          errorMessage = 'No response from server. Please check your connection.';
+        } else {
+          // Something happened in setting up the request
+          errorMessage = `Request error: ${error.message}`;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage, { duration: 5000 });
     } finally {
       setIsDownloading(false);
     }
   };
 
-  if (!reports) {
+  if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      <div className="flex flex-col items-center justify-center h-screen space-y-4">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary-500"></div>
+        <p className="text-lg text-gray-600">Loading financial reports...</p>
       </div>
     );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen space-y-4 p-4 text-center">
+        <div className="bg-red-100 p-4 rounded-full">
+          <svg className="h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <h2 className="text-2xl font-bold text-gray-800">Something went wrong</h2>
+        <p className="text-gray-600 max-w-md">{error}</p>
+        <div className="flex space-x-4 mt-4">
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+          >
+            Try Again
+          </button>
+          <button
+            onClick={() => navigate('/upload')}
+            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          >
+            Back to Upload
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!reports) {
+    return null; // This should not happen due to the redirect in useEffect
   }
 
   const { balance_sheet, income_statement, cash_flow } = reports;

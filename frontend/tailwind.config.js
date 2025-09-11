@@ -6,6 +6,11 @@ export default {
   ],
   theme: {
     extend: {
+      spacing: {
+        'icon-sm': '1.25rem',  // 20px
+        'icon-md': '1.5rem',   // 24px
+        'icon-lg': '2rem',     // 32px
+      },
       colors: {
         primary: {
           50: '#f0f9ff',

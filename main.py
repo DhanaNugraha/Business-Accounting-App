@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import pandas as pd

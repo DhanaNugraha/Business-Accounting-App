@@ -1,9 +1,18 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, ChangeEvent, KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
+import { 
+  CloudArrowUpIcon, 
+  DocumentArrowDownIcon, 
+  ArrowPathIcon,
+  CheckCircleIcon,
+  XCircleIcon
+} from '@heroicons/react/24/outline';
+import { motion, AnimatePresence } from 'framer-motion';
 
+// Type declarations
 interface UploadResponse {
   reports: {
     balance_sheet: any;
@@ -12,12 +21,68 @@ interface UploadResponse {
   };
 }
 
+type FileValidationError = {
+  code: string;
+  message: string;
+};
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_FILE_TYPES = [
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'text/csv'
+];
+
+const validateFile = (file: File | null): FileValidationError | null => {
+  if (!file) {
+    return { code: 'no-file', message: 'Please select a file to upload' };
+  }
+
+  if (!ALLOWED_FILE_TYPES.includes(file.type) && !file.name.match(/\.(xlsx|xls|csv)$/i)) {
+    return { 
+      code: 'invalid-type', 
+      message: 'Invalid file type. Please upload an Excel (.xlsx, .xls) or CSV file.' 
+    };
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    return { 
+      code: 'file-too-large', 
+      message: `File is too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.` 
+    };
+  }
+
+  return null;
+};
+
 const UploadPage = () => {
   const [file, setFile] = useState<File | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [validationError, setValidationError] = useState<FileValidationError | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  
+  // Format file size to human readable format
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
 
-  const uploadFile = async (fileToUpload: File) => {
+  // Clear validation error when file changes
+  useEffect(() => {
+    if (file) {
+      const error = validateFile(file);
+      setValidationError(error);
+    } else {
+      setValidationError(null);
+    }
+  }, [file]);
+
+  const uploadFile = async (fileToUpload: File): Promise<UploadResponse> => {
     const formData = new FormData();
     formData.append('file', fileToUpload);
 
@@ -28,27 +93,92 @@ const UploadPage = () => {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 30000, // 30 seconds timeout
       }
     );
     return data;
   };
 
-  const { mutate: uploadMutation, isPending } = useMutation({
+  interface ErrorResponse {
+    detail?: string;
+    [key: string]: any;
+  }
+
+  const { mutate: uploadMutation, isPending } = useMutation<UploadResponse, AxiosError<ErrorResponse>, File>({
     mutationFn: uploadFile,
     onSuccess: (data) => {
-      toast.success('File uploaded successfully!');
+      toast.success('File processed successfully!');
+      // Save to session storage in case of page refresh
+      sessionStorage.setItem('accountingReports', JSON.stringify(data.reports));
       // Navigate to reports page with the data
       navigate('/reports', { state: { reports: data.reports } });
     },
-    onError: (error: any) => {
-      const errorMessage = error.response?.data?.detail || 'Failed to upload file';
-      toast.error(errorMessage);
+    onError: (error) => {
+      let errorMessage = 'Failed to process file';
+      
+      if (error.response) {
+        // Server responded with an error status code
+        if (error.response.status === 400) {
+          errorMessage = 'Invalid file format. Please check the file and try again.';
+        } else if (error.response.status === 413) {
+          errorMessage = 'File is too large. Maximum size is 10MB.';
+        } else if (error.response.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        } else if (error.response.data?.detail) {
+          errorMessage = error.response.data.detail;
+        }
+      } else if (error.request) {
+        // Request was made but no response received
+        errorMessage = 'No response from server. Please check your connection.';
+      } else if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Request timeout. Please try again.';
+      }
+      
+      toast.error(errorMessage, { duration: 5000 });
+      setFile(null);
     },
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!file) {
+      setValidationError({ code: 'no-file', message: 'Please select a file to upload' });
+      return;
+    }
+    
+    const error = validateFile(file);
+    if (error) {
+      setValidationError(error);
+      toast.error(error.message, { duration: 5000 });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    uploadMutation(file, {
+      onSettled: () => {
+        setIsSubmitting(false);
+      }
+    });
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      const error = validateFile(selectedFile);
+      
+      if (error) {
+        setValidationError(error);
+        setFile(null);
+      } else {
+        setValidationError(null);
+        setFile(selectedFile);
+      }
+    }
+    
+    // Reset the file input to allow selecting the same file again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -66,138 +196,229 @@ const UploadPage = () => {
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFile(e.dataTransfer.files[0]);
+      const droppedFile = e.dataTransfer.files[0];
+      const error = validateFile(droppedFile);
+      
+      if (error) {
+        setValidationError(error);
+        setFile(null);
+        toast.error(error.message, { duration: 5000 });
+      } else {
+        setValidationError(null);
+        setFile(droppedFile);
+      }
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (file) {
-      uploadMutation(file);
-    }
-  };
-
-  const downloadTemplate = async () => {
+  const downloadTemplate = async (): Promise<void> => {
     try {
-      const response = await fetch('http://localhost:8000/download-template');
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'accounting_template.xlsx';
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
+      const response = await axios.get<Blob>('http://localhost:8000/download-template', {
+        responseType: 'blob',
+        timeout: 30000,
+      });
+      
+      if (!response.data) {
+        throw new Error('No data received from server');
+      }
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'accounting_template.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+      
       toast.success('Template downloaded successfully!');
     } catch (error) {
-      toast.error('Failed to download template');
+      console.error('Error downloading template:', error);
+      let errorMessage = 'Failed to download template';
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response) {
+          errorMessage = `Server error: ${error.response.status} - ${error.response.statusText}`;
+        } else if (error.request) {
+          errorMessage = 'No response from server. Please check your connection.';
+        } else {
+          errorMessage = `Request error: ${error.message}`;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage, { duration: 5000 });
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Upload Your Accounting Data</h2>
-        <p className="text-gray-600">
-          Upload an Excel or CSV file with your transactions and chart of accounts
-        </p>
-      </div>
-
-      <div className="bg-white shadow rounded-lg p-6 mb-8">
-        <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            isDragging ? 'border-primary-500 bg-primary-50' : 'border-gray-300 hover:border-primary-400'
-          }`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        <motion.div 
+          className="text-center mb-12"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          <div className="space-y-4">
-            <div className="mx-auto w-12 h-12 text-primary-500">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">
-                <span className="font-medium text-primary-600 hover:text-primary-500 cursor-pointer">
-                  Click to upload
-                </span>{' '}
-                or drag and drop
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                Excel or CSV file (max. 10MB)
-              </p>
-            </div>
-            <input
-              id="file-upload"
-              name="file-upload"
-              type="file"
-              className="sr-only"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleFileChange}
-            />
-          </div>
-        </div>
+          <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            Upload Your Accounting Data
+          </h1>
+          <p className="mt-2 text-lg text-gray-600 max-w-2xl mx-auto">
+            Upload your financial statements in Excel or CSV format to generate comprehensive accounting reports.
+          </p>
+        </motion.div>
 
-        {file && (
-          <div className="mt-4 flex items-center justify-between bg-gray-50 p-3 rounded-md">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-primary-100 p-2 rounded-md">
-                <svg className="h-5 w-5 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="text-gray-400 hover:text-gray-500"
-              onClick={() => setFile(null)}
+        <motion.div 
+          className="bg-white shadow-xl rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl border border-gray-100"
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          <div className="p-6 sm:p-8">
+            <motion.div
+              className={`relative border-2 border-dashed rounded-xl p-8 sm:p-12 text-center transition-all duration-300 ${
+                isDragging 
+                  ? 'border-indigo-500 bg-indigo-50/70' 
+                  : validationError 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/30'
+              }`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e: KeyboardEvent) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  fileInputRef.current?.click();
+                }
+              }}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
             >
-              <span className="sr-only">Remove file</span>
-              <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
+              <AnimatePresence>
+                {file ? (
+                  <motion.div
+                    key="file-selected"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-4"
+                  >
+                    <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-50">
+                      <CheckCircleIcon className="h-10 w-10 text-green-500" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-lg font-medium text-gray-900">
+                        {file.name}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {formatFileSize(file.size)} • {file.type || 'Unknown type'}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFile(null);
+                        }}
+                        className="inline-flex items-center text-sm font-medium text-red-600 hover:text-red-700 mt-2"
+                      >
+                        <XCircleIcon className="h-4 w-4 mr-1" />
+                        Remove file
+                      </button>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="upload-prompt"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-4"
+                  >
+                    <div className={`mx-auto flex items-center justify-center h-20 w-20 rounded-full ${validationError ? 'bg-red-50' : 'bg-indigo-50'} transition-colors`}>
+                      <CloudArrowUpIcon className={`h-10 w-10 ${validationError ? 'text-red-500' : isDragging ? 'text-indigo-600' : 'text-indigo-500'} transition-colors`} />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-base font-medium text-gray-900">
+                        <span className={`${validationError ? 'text-red-600' : 'text-indigo-600 hover:text-indigo-500'} cursor-pointer font-semibold`}>
+                          Click to upload
+                        </span>
+                        <span className="text-gray-500"> or drag and drop</span>
+                      </p>
+                      <p className={`text-sm ${validationError ? 'text-red-500' : 'text-gray-500'}`}>
+                        {validationError ? (
+                          <span className="inline-flex items-center justify-center">
+                            <svg className="h-4 w-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            {validationError.message}
+                          </span>
+                        ) : (
+                          'Excel (.xlsx, .xls) or CSV (max. 10MB)'
+                        )}
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+              />
+            </motion.div>
+
+            <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
+              <motion.button
+                type="button"
+                onClick={downloadTemplate}
+                className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.98 }}
+                disabled={isPending || isSubmitting}
+              >
+                <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
+                Download Template
+              </motion.button>
+              
+              <motion.button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!file || isPending || isSubmitting}
+                className={`inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white ${
+                  !file || isPending || isSubmitting
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
+                } transition-colors duration-200`}
+                whileHover={(!isPending && !isSubmitting && file) ? { scale: 1.03 } : {}}
+                whileTap={(!isPending && !isSubmitting && file) ? { scale: 0.98 } : {}}
+              >
+                {isPending || isSubmitting ? (
+                  <>
+                    <ArrowPathIcon className="animate-spin h-5 w-5 mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  'Upload & Analyze'
+                )}
+              </motion.button>
+            </div>
+
+            <div className="mt-8 text-center">
+              <p className="text-sm text-gray-500">
+                Need help? Contact support@accountingapp.com
+              </p>
+            </div>
           </div>
-        )}
-
-        <div className="mt-6">
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!file || isPending}
-            className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-              !file || isPending
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500'
-            }`}
-          >
-            {isPending ? 'Uploading...' : 'Process File'}
-          </button>
-        </div>
-      </div>
-
-      <div className="bg-white shadow rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Don't have a file yet?</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          Download our Excel template to get started with the correct format for your accounting data.
-        </p>
-        <button
-          type="button"
-          onClick={downloadTemplate}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-        >
-          <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-          Download Template
-        </button>
+        </motion.div>
       </div>
     </div>
   );
