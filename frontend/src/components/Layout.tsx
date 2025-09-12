@@ -1,8 +1,8 @@
 import React, { useState, ReactNode } from 'react';
 import { Outlet, NavLink as RouterNavLink } from 'react-router-dom';
 import { 
-  Bars3Icon as MenuIcon, 
   XMarkIcon as XIcon, 
+  Bars3Icon as MenuIcon,
   ChartBarIcon, 
   ArrowUpTrayIcon as UploadIcon
 } from '@heroicons/react/24/outline';
@@ -15,7 +15,13 @@ interface LayoutProps {
   children?: ReactNode;
 }
 
-const NavLink: React.FC<{ to: string; children: ReactNode; icon?: ReactNode }> = ({ 
+interface NavLinkProps {
+  to: string;
+  children: ReactNode;
+  icon?: ReactNode;
+}
+
+const NavLink: React.FC<NavLinkProps> = ({ 
   to, 
   children, 
   icon 
@@ -39,12 +45,27 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navigation = [
-    { name: 'Upload', to: '/', icon: <UploadIcon className={iconClass} /> },
+    { name: 'Upload', to: '/upload', icon: <UploadIcon className={iconClass} /> },
     { name: 'Reports', to: '/reports', icon: <ChartBarIcon className={iconClass} /> },
-  ];
+  ] as const;
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      {/* Mobile menu button */}
+      <div className="lg:hidden fixed top-4 left-4 z-30">
+        <button
+          type="button"
+          className="flex items-center justify-center w-12 h-12 rounded-xl bg-white shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Open main menu"
+        >
+          <MenuIcon 
+            className="h-6 w-6 text-gray-700 hover:text-primary-600 transition-colors" 
+            aria-hidden="true" 
+          />
+        </button>
+      </div>
+
       {/* Mobile menu */}
       <div className={`lg:hidden fixed inset-0 z-40 ${mobileMenuOpen ? 'block' : 'hidden'}`}>
         <div 
@@ -76,8 +97,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </div>
 
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:flex-shrink-0 lg:fixed lg:inset-y-0 lg:z-50">
+      {/* Desktop sidebar - Hidden on mobile */}
+      <div className="hidden lg:flex lg:flex-shrink-0 lg:fixed lg:inset-y-0 lg:z-30">
         <div className="flex flex-col w-64 h-full border-r border-gray-200 bg-white shadow-sm">
           <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
             <div className="flex items-center flex-shrink-0 px-6">
@@ -95,25 +116,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </div>
 
       <div className="flex-1 flex flex-col lg:pl-64">
-        {/* Mobile header */}
-        <div className="lg:hidden">
-          <div className="bg-white shadow-sm">
-            <div className="px-4 py-3 flex items-center justify-between">
-              <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="text-gray-500 hover:text-gray-600 focus:outline-none"
-              >
-                <MenuIcon className={mobileMenuIconClass} />
-              </button>
-              <h1 className="text-xl font-bold text-gray-900">Accounting Pro</h1>
-              <div className="w-6"></div> {/* Spacer for alignment */}
+        <main className="flex-1">
+          <div className="py-6 px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl mx-auto">
+              {children || <Outlet />}
             </div>
           </div>
-        </div>
-
-        {/* Main content */}
-        <main className="py-6 px-4 sm:px-6 lg:px-8">
-          {children || <Outlet />}
         </main>
 
         {/* Footer */}

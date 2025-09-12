@@ -12,43 +12,167 @@ import {
 } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Type declarations
+// Type declarations for financial reports
+interface FinancialPosition {
+  assets: Record<string, number>;
+  liabilities: Record<string, number>;
+  equity: Record<string, number>;
+  total_assets: number;
+  total_liabilities: number;
+  total_equity: number;
+}
+
+interface IncomeStatement {
+  revenue: Record<string, number>;
+  expenses: Record<string, number>;
+  gross_profit: number;
+  operating_income: number;
+  net_income: number;
+  period: string;
+}
+
+interface CashFlow {
+  operating_activities: number;
+  investing_activities: number;
+  financing_activities: number;
+  net_cash_flow: number;
+  period: string;
+}
+
 interface UploadResponse {
   reports: {
-    balance_sheet: any;
-    income_statement: any;
-    cash_flow: any;
+    balance_sheet: FinancialPosition;
+    income_statement: IncomeStatement;
+    cash_flow: CashFlow;
   };
 }
 
 type FileValidationError = {
   code: string;
   message: string;
+  field?: string;
 };
 
+// Constants
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_NAME_LENGTH = 100;
 const ALLOWED_FILE_TYPES = [
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-excel',
-  'text/csv'
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+  'application/vnd.ms-excel', // .xls
+  'application/csv',
+  'text/csv',
+  'text/plain' // Some CSV files might have this MIME type
 ];
 
-const validateFile = (file: File | null): FileValidationError | null => {
-  if (!file) {
-    return { code: 'no-file', message: 'Please select a file to upload' };
+// Magic numbers for file signatures (first few bytes of the file)
+const FILE_SIGNATURES = {
+  XLSX: '504B0304', // PK\x03\x04
+  XLS: 'D0CF11E0', // Standard MS Office/OLE2
+  CSV: 'EFBBBF', // UTF-8 BOM (optional for CSV)
+};
+
+// Check if file has a valid Excel or CSV signature
+const hasValidSignature = async (file: File): Promise<boolean> => {
+  if (file.size === 0) return false;
+  
+  const slice = file.slice(0, 4); // Only need first 4 bytes for signature
+  const buffer = await slice.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const hex = Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+    .toUpperCase();
+
+  return Object.values(FILE_SIGNATURES).some(sig => hex.startsWith(sig));
+};
+
+// Validate file name
+const validateFileName = (fileName: string): FileValidationError | null => {
+  if (fileName.length > MAX_FILE_NAME_LENGTH) {
+    return {
+      code: 'invalid-name-length',
+      message: `File name is too long. Maximum ${MAX_FILE_NAME_LENGTH} characters allowed.`,
+      field: 'name'
+    };
   }
 
-  if (!ALLOWED_FILE_TYPES.includes(file.type) && !file.name.match(/\.(xlsx|xls|csv)$/i)) {
+  // Check for invalid characters
+  const invalidChars = /[<>:"/\\|?*\x00-\x1F]/g;
+  if (invalidChars.test(fileName)) {
+    return {
+      code: 'invalid-characters',
+      message: 'File name contains invalid characters.',
+      field: 'name'
+    };
+  }
+
+  return null;
+};
+
+// Main file validation function
+const validateFile = async (file: File | null): Promise<FileValidationError | null> => {
+  // Check if file exists
+  if (!file) {
     return { 
-      code: 'invalid-type', 
-      message: 'Invalid file type. Please upload an Excel (.xlsx, .xls) or CSV file.' 
+      code: 'no-file', 
+      message: 'Please select a file to upload',
+      field: 'file'
+    };
+  }
+
+  // Check file size
+  if (file.size === 0) {
+    return { 
+      code: 'empty-file', 
+      message: 'The file is empty. Please select a valid file.',
+      field: 'file'
     };
   }
 
   if (file.size > MAX_FILE_SIZE) {
     return { 
       code: 'file-too-large', 
-      message: `File is too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.` 
+      message: `File is too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`,
+      field: 'file'
+    };
+  }
+
+  // Check file extension
+  const fileExt = file.name.split('.').pop()?.toLowerCase();
+  const validExtensions = ['xlsx', 'xls', 'csv'];
+  if (!fileExt || !validExtensions.includes(fileExt)) {
+    return { 
+      code: 'invalid-extension', 
+      message: 'Invalid file extension. Please upload an Excel (.xlsx, .xls) or CSV file.',
+      field: 'file'
+    };
+  }
+
+  // Check MIME type
+  const mimeType = file.type.toLowerCase();
+  const hasValidMimeType = ALLOWED_FILE_TYPES.some(type => 
+    mimeType.includes(type.split('/').pop() || '')
+  );
+
+  if (!hasValidMimeType) {
+    return { 
+      code: 'invalid-mime-type', 
+      message: 'Invalid file type. The file does not appear to be a valid Excel or CSV file.',
+      field: 'file'
+    };
+  }
+
+  // Validate file name
+  const nameError = validateFileName(file.name);
+  if (nameError) return nameError;
+
+  // Check file signature (magic number)
+  const hasValidFileSignature = await hasValidSignature(file);
+  if (!hasValidFileSignature) {
+    return {
+      code: 'invalid-signature',
+      message: 'The file does not appear to be a valid Excel or CSV file. The file may be corrupted or in an unexpected format.',
+      field: 'file'
     };
   }
 
@@ -74,83 +198,171 @@ const UploadPage = () => {
 
   // Clear validation error when file changes
   useEffect(() => {
-    if (file) {
-      const error = validateFile(file);
-      setValidationError(error);
-    } else {
-      setValidationError(null);
-    }
+    const validate = async () => {
+      if (file) {
+        const error = await validateFile(file);
+        setValidationError(error);
+      } else {
+        setValidationError(null);
+      }
+    };
+    
+    validate();
   }, [file]);
+
+  // Extended error response type for better type safety
+  interface ApiErrorResponse {
+    detail?: string;
+    error?: string;
+    message?: string;
+    statusCode?: number;
+    code?: string;
+    issues?: Array<{
+      field: string;
+      message: string;
+    }>;
+  }
+
+  // Enhanced error handler with specific error types
+  const getErrorMessage = (error: unknown): string => {
+    if (axios.isAxiosError<ApiErrorResponse>(error)) {
+      const { response, code, message } = error;
+      
+      // Handle network errors
+      if (code === 'ERR_NETWORK') {
+        return 'Network error. Please check your internet connection.';
+      }
+      
+      // Handle timeout
+      if (code === 'ECONNABORTED') {
+        return 'Request timed out. Please try again.';
+      }
+      
+      // Handle HTTP errors
+      if (response) {
+        const { status, data } = response;
+        
+        switch (status) {
+          case 400:
+            if (data.issues?.length) {
+              // Handle validation errors
+              return data.issues.map(issue => `${issue.field}: ${issue.message}`).join('\n');
+            }
+            return data.detail || data.message || 'Invalid request. Please check your input.';
+            
+          case 401:
+            return 'Authentication required. Please log in again.';
+            
+          case 403:
+            return 'You do not have permission to perform this action.';
+            
+          case 404:
+            return 'The requested resource was not found.';
+            
+          case 413:
+            return 'File is too large. Maximum size is 10MB.';
+            
+          case 429:
+            return 'Too many requests. Please try again later.';
+            
+          case 500:
+            return 'An unexpected server error occurred. Please try again later.';
+            
+          default:
+            return data.detail || data.message || `An error occurred (${status})`;
+        }
+      }
+      
+      return message || 'An unknown error occurred';
+    }
+    
+    // Handle non-Axios errors
+    if (error instanceof Error) {
+      return error.message || 'An unexpected error occurred';
+    }
+    
+    return 'An unknown error occurred';
+  };
 
   const uploadFile = async (fileToUpload: File): Promise<UploadResponse> => {
     const formData = new FormData();
     formData.append('file', fileToUpload);
 
-    const { data } = await axios.post<UploadResponse>(
-      'http://localhost:8000/upload',
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: 30000, // 30 seconds timeout
-      }
-    );
-    return data;
+    try {
+      const { data } = await axios.post<UploadResponse>(
+        'http://localhost:8000/upload',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Accept': 'application/json',
+          },
+          timeout: 60000, // Increased to 60 seconds for large files
+          withCredentials: true, // For handling cookies/auth
+          validateStatus: (status) => status < 500, // Don't throw for 4xx errors
+        }
+      );
+      return data;
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      throw new Error(errorMessage);
+    }
   };
 
-  interface ErrorResponse {
-    detail?: string;
-    [key: string]: any;
-  }
-
-  const { mutate: uploadMutation, isPending } = useMutation<UploadResponse, AxiosError<ErrorResponse>, File>({
+  const { mutate: uploadMutation, isPending } = useMutation<UploadResponse, Error, File>({
     mutationFn: uploadFile,
     onSuccess: (data) => {
       toast.success('File processed successfully!');
       // Save to session storage in case of page refresh
-      sessionStorage.setItem('accountingReports', JSON.stringify(data.reports));
-      // Navigate to reports page with the data
-      navigate('/reports', { state: { reports: data.reports } });
+      try {
+        sessionStorage.setItem('accountingReports', JSON.stringify(data.reports));
+        // Navigate to reports page with the data
+        navigate('/reports', { 
+          state: { 
+            reports: data.reports,
+            timestamp: new Date().toISOString() 
+          } 
+        });
+      } catch (storageError) {
+        console.error('Failed to save to session storage:', storageError);
+        toast.error('Failed to save report data. Please try again.');
+      }
     },
     onError: (error) => {
-      let errorMessage = 'Failed to process file';
-      
-      if (error.response) {
-        // Server responded with an error status code
-        if (error.response.status === 400) {
-          errorMessage = 'Invalid file format. Please check the file and try again.';
-        } else if (error.response.status === 413) {
-          errorMessage = 'File is too large. Maximum size is 10MB.';
-        } else if (error.response.status >= 500) {
-          errorMessage = 'Server error. Please try again later.';
-        } else if (error.response.data?.detail) {
-          errorMessage = error.response.data.detail;
-        }
-      } else if (error.request) {
-        // Request was made but no response received
-        errorMessage = 'No response from server. Please check your connection.';
-      } else if (error.code === 'ECONNABORTED') {
-        errorMessage = 'Request timeout. Please try again.';
-      }
-      
-      toast.error(errorMessage, { duration: 5000 });
+      const errorMessage = error.message || 'Failed to process file';
+      toast.error(errorMessage, { 
+        duration: 10000, // Longer duration for error messages
+        position: 'top-center',
+        className: 'max-w-md',
+      });
       setFile(null);
+      setValidationError({
+        code: 'upload-failed',
+        message: errorMessage,
+      });
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!file) {
-      setValidationError({ code: 'no-file', message: 'Please select a file to upload' });
+      setValidationError({ 
+        code: 'no-file', 
+        message: 'Please select a file to upload',
+        field: 'file'
+      });
       return;
     }
     
-    const error = validateFile(file);
+    const error = await validateFile(file);
     if (error) {
       setValidationError(error);
-      toast.error(error.message, { duration: 5000 });
+      toast.error(error.message, { 
+        duration: 5000,
+        position: 'top-center',
+        className: 'max-w-md',
+      });
       return;
     }
     
@@ -162,17 +374,22 @@ const UploadPage = () => {
     });
   };
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const selectedFile = e.target.files[0];
-      const error = validateFile(selectedFile);
+      const error = await validateFile(selectedFile);
       
       if (error) {
         setValidationError(error);
         setFile(null);
+        toast.error(error.message, {
+          duration: 5000,
+          position: 'top-center',
+          className: 'max-w-md',
+        });
       } else {
-        setValidationError(null);
         setFile(selectedFile);
+        setValidationError(null);
       }
     }
     
@@ -191,21 +408,26 @@ const UploadPage = () => {
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFile = e.dataTransfer.files[0];
-      const error = validateFile(droppedFile);
+      const error = await validateFile(droppedFile);
       
       if (error) {
         setValidationError(error);
         setFile(null);
-        toast.error(error.message, { duration: 5000 });
+        toast.error(error.message, {
+          duration: 5000,
+          position: 'top-center',
+          className: 'max-w-md',
+        });
       } else {
-        setValidationError(null);
         setFile(droppedFile);
+        setValidationError(null);
       }
     }
   };
