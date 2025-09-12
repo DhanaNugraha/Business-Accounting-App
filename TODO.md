@@ -82,6 +82,20 @@
 ## Current Issues
 - [x] Resolve source map warnings in development
 - [x] Fix React Router future flag warnings
+- [ ] Implement template download functionality
+  - [ ] Connect download button to backend /template endpoint
+  - [ ] Ensure proper file download with correct MIME type
+  - [ ] Add error handling for failed downloads
+- [ ] Fix Reports page access
+  - [ ] Implement basic Reports page component
+  - [ ] Add route in App.tsx
+  - [ ] Add navigation link in the sidebar/menu
+- [ ] UI/UX Improvements
+  - [ ] Add loading skeletons for better perceived performance
+  - [ ] Improve form validation feedback
+  - [ ] Add success/error toast notifications
+  - [ ] Enhance mobile responsiveness
+  - [ ] Add hover/focus states for interactive elements
 - [x] TypeScript type improvements
   - [x] Define interfaces for transaction data
   - [x] Type API responses
