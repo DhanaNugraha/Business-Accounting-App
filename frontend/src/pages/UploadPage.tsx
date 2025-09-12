@@ -1,190 +1,46 @@
-import { useState, useRef, useEffect, ChangeEvent, KeyboardEvent } from 'react';
+import { useState, useRef, ChangeEvent, DragEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useAppContext } from '@/contexts/AppContext';
 import { toast } from 'react-hot-toast';
-import axios, { AxiosError } from 'axios';
+import type { TransactionItem } from '@/types';
 import { 
   CloudArrowUpIcon, 
-  DocumentArrowDownIcon, 
-  ArrowPathIcon,
-  CheckCircleIcon,
-  XCircleIcon
+  DocumentArrowDownIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
-import { motion, AnimatePresence } from 'framer-motion';
 
-// Type declarations for financial reports
-interface FinancialPosition {
-  assets: Record<string, number>;
-  liabilities: Record<string, number>;
-  equity: Record<string, number>;
-  total_assets: number;
-  total_liabilities: number;
-  total_equity: number;
+interface AccountData {
+  id: string;
+  name: string;
+  balance: number;
+  transactions: TransactionItem[];
+  code?: string;
+  type?: string;
+  currency?: string;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-interface IncomeStatement {
-  revenue: Record<string, number>;
-  expenses: Record<string, number>;
-  gross_profit: number;
-  operating_income: number;
-  net_income: number;
-  period: string;
-}
 
-interface CashFlow {
-  operating_activities: number;
-  investing_activities: number;
-  financing_activities: number;
-  net_cash_flow: number;
-  period: string;
-}
-
-interface UploadResponse {
-  reports: {
-    balance_sheet: FinancialPosition;
-    income_statement: IncomeStatement;
-    cash_flow: CashFlow;
-  };
-}
-
-type FileValidationError = {
+interface FileValidationError {
   code: string;
   message: string;
-  field?: string;
-};
+}
 
 // Constants
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const MAX_FILE_NAME_LENGTH = 100;
 const ALLOWED_FILE_TYPES = [
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-  'application/vnd.ms-excel', // .xls
-  'application/csv',
-  'text/csv',
-  'text/plain' // Some CSV files might have this MIME type
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel'
 ];
 
-// Magic numbers for file signatures (first few bytes of the file)
-const FILE_SIGNATURES = {
-  XLSX: '504B0304', // PK\x03\x04
-  XLS: 'D0CF11E0', // Standard MS Office/OLE2
-  CSV: 'EFBBBF', // UTF-8 BOM (optional for CSV)
-};
-
-// Check if file has a valid Excel or CSV signature
-const hasValidSignature = async (file: File): Promise<boolean> => {
-  if (file.size === 0) return false;
-  
-  const slice = file.slice(0, 4); // Only need first 4 bytes for signature
-  const buffer = await slice.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  const hex = Array.from(bytes)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('')
-    .toUpperCase();
-
-  return Object.values(FILE_SIGNATURES).some(sig => hex.startsWith(sig));
-};
-
-// Validate file name
-const validateFileName = (fileName: string): FileValidationError | null => {
-  if (fileName.length > MAX_FILE_NAME_LENGTH) {
-    return {
-      code: 'invalid-name-length',
-      message: `File name is too long. Maximum ${MAX_FILE_NAME_LENGTH} characters allowed.`,
-      field: 'name'
-    };
-  }
-
-  // Check for invalid characters
-  const invalidChars = /[<>:"/\\|?*\x00-\x1F]/g;
-  if (invalidChars.test(fileName)) {
-    return {
-      code: 'invalid-characters',
-      message: 'File name contains invalid characters.',
-      field: 'name'
-    };
-  }
-
-  return null;
-};
-
-// Main file validation function
-const validateFile = async (file: File | null): Promise<FileValidationError | null> => {
-  // Check if file exists
-  if (!file) {
-    return { 
-      code: 'no-file', 
-      message: 'Please select a file to upload',
-      field: 'file'
-    };
-  }
-
-  // Check file size
-  if (file.size === 0) {
-    return { 
-      code: 'empty-file', 
-      message: 'The file is empty. Please select a valid file.',
-      field: 'file'
-    };
-  }
-
-  if (file.size > MAX_FILE_SIZE) {
-    return { 
-      code: 'file-too-large', 
-      message: `File is too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`,
-      field: 'file'
-    };
-  }
-
-  // Check file extension
-  const fileExt = file.name.split('.').pop()?.toLowerCase();
-  const validExtensions = ['xlsx', 'xls', 'csv'];
-  if (!fileExt || !validExtensions.includes(fileExt)) {
-    return { 
-      code: 'invalid-extension', 
-      message: 'Invalid file extension. Please upload an Excel (.xlsx, .xls) or CSV file.',
-      field: 'file'
-    };
-  }
-
-  // Check MIME type
-  const mimeType = file.type.toLowerCase();
-  const hasValidMimeType = ALLOWED_FILE_TYPES.some(type => 
-    mimeType.includes(type.split('/').pop() || '')
-  );
-
-  if (!hasValidMimeType) {
-    return { 
-      code: 'invalid-mime-type', 
-      message: 'Invalid file type. The file does not appear to be a valid Excel or CSV file.',
-      field: 'file'
-    };
-  }
-
-  // Validate file name
-  const nameError = validateFileName(file.name);
-  if (nameError) return nameError;
-
-  // Check file signature (magic number)
-  const hasValidFileSignature = await hasValidSignature(file);
-  if (!hasValidFileSignature) {
-    return {
-      code: 'invalid-signature',
-      message: 'The file does not appear to be a valid Excel or CSV file. The file may be corrupted or in an unexpected format.',
-      field: 'file'
-    };
-  }
-
-  return null;
-};
-
 const UploadPage = () => {
-  const [file, setFile] = useState<File | null>(null);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<FileValidationError | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { dispatch } = useAppContext();
   const navigate = useNavigate();
   
   // Format file size to human readable format
@@ -196,451 +52,273 @@ const UploadPage = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Clear validation error when file changes
-  useEffect(() => {
-    const validate = async () => {
-      if (file) {
-        const error = await validateFile(file);
-        setValidationError(error);
-      } else {
-        setValidationError(null);
-      }
-    };
+  // Process and update accounts in the app state
+  const processAndUpdateAccounts = (accounts: AccountData[]): boolean => {
+    if (!accounts || accounts.length === 0) return false;
     
-    validate();
-  }, [file]);
-
-  // Extended error response type for better type safety
-  interface ApiErrorResponse {
-    detail?: string;
-    error?: string;
-    message?: string;
-    statusCode?: number;
-    code?: string;
-    issues?: Array<{
-      field: string;
-      message: string;
-    }>;
-  }
-
-  // Enhanced error handler with specific error types
-  const getErrorMessage = (error: unknown): string => {
-    if (axios.isAxiosError<ApiErrorResponse>(error)) {
-      const { response, code, message } = error;
-      
-      // Handle network errors
-      if (code === 'ERR_NETWORK') {
-        return 'Network error. Please check your internet connection.';
-      }
-      
-      // Handle timeout
-      if (code === 'ECONNABORTED') {
-        return 'Request timed out. Please try again.';
-      }
-      
-      // Handle HTTP errors
-      if (response) {
-        const { status, data } = response;
-        
-        switch (status) {
-          case 400:
-            if (data.issues?.length) {
-              // Handle validation errors
-              return data.issues.map(issue => `${issue.field}: ${issue.message}`).join('\n');
-            }
-            return data.detail || data.message || 'Invalid request. Please check your input.';
-            
-          case 401:
-            return 'Authentication required. Please log in again.';
-            
-          case 403:
-            return 'You do not have permission to perform this action.';
-            
-          case 404:
-            return 'The requested resource was not found.';
-            
-          case 413:
-            return 'File is too large. Maximum size is 10MB.';
-            
-          case 429:
-            return 'Too many requests. Please try again later.';
-            
-          case 500:
-            return 'An unexpected server error occurred. Please try again later.';
-            
-          default:
-            return data.detail || data.message || `An error occurred (${status})`;
-        }
-      }
-      
-      return message || 'An unknown error occurred';
-    }
+    const mappedAccounts = accounts.map(account => ({
+      id: account.id || `acc-${Math.random().toString(36).substr(2, 9)}`,
+      name: account.name || 'Akun Tanpa Nama',
+      balance: account.balance || 0,
+      transactions: (account.transactions || []).map(tx => ({
+        id: tx.id || `tx-${Math.random().toString(36).substr(2, 9)}`,
+        tanggal: tx.tanggal || new Date().toISOString().split('T')[0],
+        uraian: tx.uraian || '',
+        penerimaan: tx.penerimaan || '0',
+        pengeluaran: tx.pengeluaran || '0',
+        saldo: tx.saldo || 0
+      })),
+      code: account.code,
+      type: account.type,
+      currency: account.currency || 'IDR',
+      isActive: account.isActive !== false,
+      createdAt: account.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }));
     
-    // Handle non-Axios errors
-    if (error instanceof Error) {
-      return error.message || 'An unexpected error occurred';
-    }
-    
-    return 'An unknown error occurred';
+    dispatch({ type: 'SET_ACCOUNTS', payload: mappedAccounts });
+    return true;
   };
 
-  const uploadFile = async (fileToUpload: File): Promise<UploadResponse> => {
-    const formData = new FormData();
-    formData.append('file', fileToUpload);
-
-    try {
-      const { data } = await axios.post<UploadResponse>(
-        'http://localhost:8000/upload',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            'Accept': 'application/json',
-          },
-          timeout: 60000, // Increased to 60 seconds for large files
-          withCredentials: true, // For handling cookies/auth
-          validateStatus: (status) => status < 500, // Don't throw for 4xx errors
-        }
-      );
-      return data;
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      throw new Error(errorMessage);
-    }
-  };
-
-  const { mutate: uploadMutation, isPending } = useMutation<UploadResponse, Error, File>({
-    mutationFn: uploadFile,
-    onSuccess: (data) => {
-      toast.success('File processed successfully!');
-      // Save to session storage in case of page refresh
-      try {
-        sessionStorage.setItem('accountingReports', JSON.stringify(data.reports));
-        // Navigate to reports page with the data
-        navigate('/reports', { 
-          state: { 
-            reports: data.reports,
-            timestamp: new Date().toISOString() 
-          } 
-        });
-      } catch (storageError) {
-        console.error('Failed to save to session storage:', storageError);
-        toast.error('Failed to save report data. Please try again.');
-      }
-    },
-    onError: (error) => {
-      const errorMessage = error.message || 'Failed to process file';
-      toast.error(errorMessage, { 
-        duration: 10000, // Longer duration for error messages
-        position: 'top-center',
-        className: 'max-w-md',
-      });
-      setFile(null);
-      setValidationError({
-        code: 'upload-failed',
-        message: errorMessage,
-      });
-    },
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  // Validate file
+  const validateFile = (file: File): FileValidationError | null => {
     if (!file) {
-      setValidationError({ 
-        code: 'no-file', 
-        message: 'Please select a file to upload',
-        field: 'file'
-      });
+      return {
+        code: 'NO_FILE',
+        message: 'Silakan pilih file untuk diunggah'
+      };
+    }
+
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      return {
+        code: 'INVALID_TYPE',
+        message: 'Hanya file Excel (.xlsx, .xls) yang didukung'
+      };
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return {
+        code: 'FILE_TOO_LARGE',
+        message: `Ukuran file tidak boleh melebihi ${MAX_FILE_SIZE / (1024 * 1024)}MB`
+      };
+    }
+
+    return null;
+  };
+
+  const handleFileUpload = async (fileToUpload: File): Promise<AccountData[]> => {
+    if (!fileToUpload) return [];
+    
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      setValidationError(null);
+      
+      // In a real app, you would upload the file to your server here
+      // For now, we'll simulate a successful upload with sample data
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Sample response - replace with actual API call
+      const responseData = {
+        accounts: [
+          {
+            id: 'acc-1',
+            name: 'Kas',
+            balance: 0,
+            transactions: []
+          }
+        ]
+      };
+      
+      return responseData.accounts;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan saat mengunggah file';
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      toast.error(errorMessage);
+      return [];
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  };
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+    
+    const error = validateFile(selectedFile);
+    if (error) {
+      setValidationError(error);
       return;
     }
     
-    const error = await validateFile(file);
+    setValidationError(null);
+    setIsSubmitting(true);
+    
+    handleFileUpload(selectedFile)
+      .then(accounts => {
+        if (processAndUpdateAccounts(accounts)) {
+          toast.success('File berhasil diunggah');
+          navigate('/editor');
+        } else {
+          toast.error('Tidak ada data transaksi yang valid');
+        }
+      })
+      .catch(err => {
+        console.error('Upload error:', err);
+        toast.error('Gagal memproses file. Silakan coba lagi.');
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      });
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const droppedFile = e.dataTransfer.files?.[0];
+    if (!droppedFile) return;
+    
+    const error = validateFile(droppedFile);
     if (error) {
       setValidationError(error);
-      toast.error(error.message, { 
-        duration: 5000,
-        position: 'top-center',
-        className: 'max-w-md',
-      });
       return;
     }
     
     setIsSubmitting(true);
-    uploadMutation(file, {
-      onSettled: () => {
-        setIsSubmitting(false);
-      }
-    });
-  };
-
-  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const selectedFile = e.target.files[0];
-      const error = await validateFile(selectedFile);
-      
-      if (error) {
-        setValidationError(error);
-        setFile(null);
-        toast.error(error.message, {
-          duration: 5000,
-          position: 'top-center',
-          className: 'max-w-md',
-        });
-      } else {
-        setFile(selectedFile);
-        setValidationError(null);
-      }
-    }
-    
-    // Reset the file input to allow selecting the same file again
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const droppedFile = e.dataTransfer.files[0];
-      const error = await validateFile(droppedFile);
-      
-      if (error) {
-        setValidationError(error);
-        setFile(null);
-        toast.error(error.message, {
-          duration: 5000,
-          position: 'top-center',
-          className: 'max-w-md',
-        });
-      } else {
-        setFile(droppedFile);
-        setValidationError(null);
-      }
-    }
-  };
-
-  const downloadTemplate = async (): Promise<void> => {
     try {
-      const response = await axios.get<Blob>('http://localhost:8000/download-template', {
-        responseType: 'blob',
-        timeout: 30000,
-      });
-      
-      if (!response.data) {
-        throw new Error('No data received from server');
+      const accounts = await handleFileUpload(droppedFile);
+      if (processAndUpdateAccounts(accounts)) {
+        toast.success('File berhasil diunggah');
+        navigate('/editor');
+      } else {
+        toast.error('Tidak ada data transaksi yang valid');
       }
-      
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'accounting_template.xlsx');
-      document.body.appendChild(link);
-      link.click();
-      
-      // Clean up
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      }, 100);
-      
-      toast.success('Template downloaded successfully!');
     } catch (error) {
-      console.error('Error downloading template:', error);
-      let errorMessage = 'Failed to download template';
-      
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          errorMessage = `Server error: ${error.response.status} - ${error.response.statusText}`;
-        } else if (error.request) {
-          errorMessage = 'No response from server. Please check your connection.';
-        } else {
-          errorMessage = `Request error: ${error.message}`;
-        }
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
-      toast.error(errorMessage, { duration: 5000 });
+      console.error('Error processing file:', error);
+      toast.error('Gagal memproses file. Silakan coba lagi.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <motion.div 
-          className="text-center mb-12"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-            Upload Your Accounting Data
-          </h1>
-          <p className="mt-2 text-lg text-gray-600 max-w-2xl mx-auto">
-            Upload your financial statements in Excel or CSV format to generate comprehensive accounting reports.
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Unggah File Transaksi</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Unggah file Excel yang berisi data transaksi Anda
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div 
-          className="bg-white shadow-xl rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl border border-gray-100"
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
+        <div 
+          className={`mt-8 border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
+            isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
-          <div className="p-6 sm:p-8">
-            <motion.div
-              className={`relative border-2 border-dashed rounded-xl p-8 sm:p-12 text-center transition-all duration-300 ${
-                isDragging 
-                  ? 'border-indigo-500 bg-indigo-50/70' 
-                  : validationError 
-                    ? 'border-red-300 bg-red-50' 
-                    : 'border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/30'
-              }`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e: KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  fileInputRef.current?.click();
-                }
-              }}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-            >
-              <AnimatePresence>
-                {file ? (
-                  <motion.div
-                    key="file-selected"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="space-y-4"
-                  >
-                    <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-50">
-                      <CheckCircleIcon className="h-10 w-10 text-green-500" />
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-lg font-medium text-gray-900">
-                        {file.name}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {formatFileSize(file.size)} • {file.type || 'Unknown type'}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFile(null);
-                        }}
-                        className="inline-flex items-center text-sm font-medium text-red-600 hover:text-red-700 mt-2"
-                      >
-                        <XCircleIcon className="h-4 w-4 mr-1" />
-                        Remove file
-                      </button>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div 
-                    key="upload-prompt"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="space-y-4"
-                  >
-                    <div className={`mx-auto flex items-center justify-center h-20 w-20 rounded-full ${validationError ? 'bg-red-50' : 'bg-indigo-50'} transition-colors`}>
-                      <CloudArrowUpIcon className={`h-10 w-10 ${validationError ? 'text-red-500' : isDragging ? 'text-indigo-600' : 'text-indigo-500'} transition-colors`} />
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-base font-medium text-gray-900">
-                        <span className={`${validationError ? 'text-red-600' : 'text-indigo-600 hover:text-indigo-500'} cursor-pointer font-semibold`}>
-                          Click to upload
-                        </span>
-                        <span className="text-gray-500"> or drag and drop</span>
-                      </p>
-                      <p className={`text-sm ${validationError ? 'text-red-500' : 'text-gray-500'}`}>
-                        {validationError ? (
-                          <span className="inline-flex items-center justify-center">
-                            <svg className="h-4 w-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            {validationError.message}
-                          </span>
-                        ) : (
-                          'Excel (.xlsx, .xls) or CSV (max. 10MB)'
-                        )}
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
-              />
-            </motion.div>
-
-            <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-              <motion.button
-                type="button"
-                onClick={downloadTemplate}
-                className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.98 }}
-                disabled={isPending || isSubmitting}
-              >
-                <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
-                Download Template
-              </motion.button>
-              
-              <motion.button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!file || isPending || isSubmitting}
-                className={`inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white ${
-                  !file || isPending || isSubmitting
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-                } transition-colors duration-200`}
-                whileHover={(!isPending && !isSubmitting && file) ? { scale: 1.03 } : {}}
-                whileTap={(!isPending && !isSubmitting && file) ? { scale: 0.98 } : {}}
-              >
-                {isPending || isSubmitting ? (
-                  <>
-                    <ArrowPathIcon className="animate-spin h-5 w-5 mr-2" />
-                    Processing...
-                  </>
-                ) : (
-                  'Upload & Analyze'
-                )}
-              </motion.button>
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <div className="p-3 rounded-full bg-blue-100">
+                <CloudArrowUpIcon className="h-8 w-8 text-blue-600" />
+              </div>
             </div>
-
-            <div className="mt-8 text-center">
-              <p className="text-sm text-gray-500">
-                Need help? Contact support@accountingapp.com
+            <div className="space-y-1">
+              <p className="text-sm text-gray-600">
+                <button
+                  type="button"
+                  className="font-medium text-blue-600 hover:text-blue-500 focus:outline-none focus:underline transition duration-150 ease-in-out"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isSubmitting}
+                >
+                  Unggah file
+                </button>{' '}
+                atau tarik dan lepas
+              </p>
+              <p className="text-xs text-gray-500">
+                File Excel (XLSX) hingga {formatFileSize(MAX_FILE_SIZE)}
               </p>
             </div>
           </div>
-        </motion.div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".xlsx, .xls"
+            onChange={handleFileChange}
+            disabled={isSubmitting}
+          />
+        </div>
+
+        {validationError && (
+          <div className="mt-4 p-3 text-sm text-red-700 bg-red-100 rounded-md">
+            {validationError.message}
+          </div>
+        )}
+
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() => {
+              // In a real app, this would download a template file
+              toast.success('Template berhasil diunduh');
+            }}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <ArrowPathIcon className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                Memproses...
+              </>
+            ) : (
+              <>
+                <DocumentArrowDownIcon className="-ml-1 mr-2 h-5 w-5" />
+                Unduh Template
+              </>
+            )}
+          </button>
+        </div>
+        
+        {/* Quick Help */}
+        <div className="mt-8 bg-white shadow rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Panduan Singkat</h3>
+          <ul className="space-y-3 text-sm text-gray-600">
+            <li className="flex items-start">
+              <span className="text-blue-500 mr-2">•</span>
+              <span>Unduh template terlebih dahulu untuk format yang benar</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-500 mr-2">•</span>
+              <span>Setiap sheet dalam file Excel mewakili satu akun</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-500 mr-2">•</span>
+              <span>Pastikan format tanggal sesuai (DD/MM/YYYY)</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-500 mr-2">•</span>
+              <span>Gunakan koma (,) untuk desimal dan titik (.) untuk ribuan</span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );

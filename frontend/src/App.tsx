@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { 
   createBrowserRouter,
   createRoutesFromElements,
@@ -8,8 +7,10 @@ import {
 } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AppProvider } from './contexts/AppContext';
 import Layout from './components/Layout';
 import UploadPage from './pages/UploadPage';
+import EditorPage from './pages/EditorPage';
 import ReportsPage from './pages/ReportsPage';
 
 // Create a client
@@ -28,6 +29,7 @@ const router = createBrowserRouter(
     <Route element={<Layout />}>
       <Route path="/" element={<Navigate to="/upload" replace />} />
       <Route path="/upload" element={<UploadPage />} />
+      <Route path="/editor" element={<EditorPage />} />
       <Route path="/reports" element={<ReportsPage />} />
     </Route>
   ),
@@ -39,13 +41,13 @@ const router = createBrowserRouter(
   }
 );
 
-const App: React.FC = () => {
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-gray-50">
+      <AppProvider>
+        <Toaster position="top-center" />
         <RouterProvider router={router} />
-        <Toaster position="top-right" />
-      </div>
+      </AppProvider>
     </QueryClientProvider>
   );
 };

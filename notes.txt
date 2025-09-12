@@ -19,3 +19,9 @@ pengen nulis di web tapi save ke lokal
 
 (kolom yg bener itu selain BNI)
 
+
+
+Test the API endpoints
+Implement the frontend components
+Add data validation and error handling
+Implement the transaction editor UI

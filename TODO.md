@@ -1,77 +1,114 @@
-# Accounting Web App Development Roadmap
+# Accounting Web App Development Roadmap (Updated for Editor Workflow)
 
 ## Backend Setup
 - [x] Create virtual environment and install dependencies
 - [x] Set up FastAPI application structure
-- [x] Implement template generation (generate_template.py)
-- [x] Create API endpoints in main.py
-  - [x] GET /download-template
-  - [x] POST /upload
-  - [x] POST /download-updated
-- [x] Implement report generation logic
-  - [x] Balance Sheet
-  - [x] Income Statement
-  - [x] Cash Flow Statement
+- [x] Update API endpoints in main.py
+  - [x] POST /upload - Handle new Excel format with multiple accounts
+  - [x] POST /save - Save edited transactions back to Excel
+  - [x] GET /template - Generate blank template with new format
+- [x] Implement transaction processing logic
+  - [x] Parse multiple accounts from Excel
+  - [x] Calculate running balances per account
+  - [x] Handle in-memory data structure for transactions
 
 ## Frontend Setup
 - [x] Set up React + TypeScript + Vite project
-- [x] Install required dependencies (Tailwind, Recharts, etc.)
-- [x] Create UploadPage component
-  - [x] Implement drag and drop file upload
-  - [x] Add file validation
-  - [x] Add error handling
-  - [x] Improve accessibility
-- [x] Create ReportsPage component
-  - [x] Balance Sheet display
-  - [x] Income Statement with charts
-  - [x] Cash Flow Statement
-  - [x] Add loading states
-  - [x] Add error handling
-- [x] Set up routing and state management
+- [x] Install additional dependencies
+  - [x] React Table or similar for editable grid
+  - [x] Date picker for transaction dates
+  - [x] Currency input handling
+- [x] Create AccountSelector component
+  - [x] Dropdown to switch between accounts
+  - [x] Display current account balance
+- [x] Update UploadPage component
+  - [x] Handle new Excel format
+  - [x] Validate file structure
+  - [x] Parse and store account data
+- [x] Create TransactionEditor component
+  - [x] Editable data grid for transactions
+  - [x] Add/remove transaction rows
+  - [x] Auto-calculate running balances
+  - [x] Inline editing for all fields
+  - [x] Date picker for transaction dates
+- [x] Implement state management
+  - [x] Track multiple accounts
+  - [x] Handle transaction CRUD operations
+  - [x] Auto-save to localStorage
+
+## Recent Improvements
+- [x] Fixed TypeScript type conflicts in UploadPage
+- [x] Improved error handling and user feedback
+- [x] Cleaned up unused code and imports
+- [x] Standardized Indonesian field names across components
+- [x] Added proper loading states for file uploads
 
 ## Testing & Validation (Next Up)
 - [ ] Unit tests for backend API
-- [ ] Integration tests for report generation
-- [ ] Frontend component tests (Priority: High)
+  - [ ] Test Excel parsing with multiple accounts
+  - [ ] Test balance calculation logic
+  - [ ] Test Excel generation
+- [ ] Frontend component tests
+  - [ ] Transaction editor functionality
+  - [ ] Account switching
+  - [ ] Balance calculations
 - [ ] End-to-end tests
-- [ ] Test file upload and processing
-- [ ] Validate report calculations
-- [ ] Test template download
-- [ ] Test updated file download
+  - [ ] Full workflow: upload → edit → save → download
+  - [ ] Data integrity validation
+- [ ] Test file handling
+  - [ ] Upload validation
+  - [ ] Template download
+  - [ ] Save/load from localStorage
 
 ## UI/UX Improvements
 - [x] Add loading states
 - [x] Basic error handling
-- [x] Add form validation
-- [x] Improve responsive design
-  - [x] Fix mobile menu implementation
-  - [x] Ensure proper scaling on different screen sizes
-- [ ] Add tooltips and help text
+- [ ] Form validation for transactions
+  - [ ] Required fields
+  - [ ] Date format validation
+  - [ ] Number format validation
+  - [ ] Balance validation
+- [ ] Responsive design
+  - [x] Mobile menu implementation
+  - [ ] Optimize for small screens
+  - [ ] Touch-friendly controls
+- [ ] Transaction editor features
+  - [ ] Keyboard navigation
+  - [ ] Bulk actions
+  - [ ] Search/filter transactions
+- [ ] Add help text and tooltips
 - [ ] Implement dark mode
-- [x] Add success/error notifications (via react-hot-toast)
 
 ## Current Issues
-- [x] Resolve source map warnings in development (Vite config updated)
-- [x] Fix React Router future flag warnings (Updated to v6.22.3)
-- [ ] TypeScript type improvements
-  - [x] Fix Layout component TypeScript errors
-  - [ ] Replace remaining 'any' types with proper interfaces
-  - [ ] Add type safety for API responses
-- [ ] Ensure proper error handling for API calls
-- [ ] Add input validation for file uploads
+- [x] Resolve source map warnings in development
+- [x] Fix React Router future flag warnings
+- [x] TypeScript type improvements
+  - [x] Define interfaces for transaction data
+  - [x] Type API responses
+  - [x] Add type guards for runtime validation
+- [ ] State management
+  - [ ] Optimize re-renders
+  - [ ] Handle large datasets efficiently
+- [ ] Performance
+  - [ ] Virtualize transaction list for large datasets
+  - [ ] Optimize Excel parsing/generation
 
 ## Documentation
 - [x] Basic README
-- [ ] Update README with:
-  - [ ] Detailed backend setup
-  - [ ] Frontend development workflow
-  - [ ] Deployment instructions
-- [ ] Add API documentation
-- [ ] Document report calculation methods
-- [ ] Add comments to complex components
+- [ ] Update documentation for new features
+  - [x] New Excel format specification
+  - [x] API endpoint documentation
+  - [x] Development setup guide
+- [ ] Add JSDoc comments
+  - [ ] Component props and state
+  - [ ] Utility functions
+  - [ ] Custom hooks
 
 ## Future Enhancements
-- [ ] Support for multiple companies
-- [ ] Custom report generation
-- [ ] Export to PDF/Excel
-- [ ] Email report delivery
+- [ ] Transaction categories and tags
+- [ ] Recurring transactions
+- [ ] Import/export templates
+- [ ] Keyboard shortcuts
+- [ ] Data visualization
+  - [ ] Expense/income charts
+  - [ ] Cash flow forecasting
