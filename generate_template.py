@@ -174,12 +174,28 @@ def create_template(output_path: str = "template.xlsx",
             # Add filters to the header row
             worksheet.auto_filter.ref = worksheet.dimensions
             
-            # Format header row
-            header_fill = "D9EAD3"  # Light green background
-            for cell in worksheet[1]:
-                cell.fill = PatternFill(start_color=header_fill, end_color=header_fill, fill_type="solid")
+            # Format header row with different colors for different column types
+            default_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+            penerimaan_fill = PatternFill(start_color="E6F7E6", end_color="E6F7E6", fill_type="solid")  # Light green
+            pengeluaran_fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")  # Light red
+            
+            # Apply header formatting based on column type
+            for idx, cell in enumerate(worksheet[1], 1):
+                column_title = cell.value
+                if str(column_title).startswith('Penerimaan_'):
+                    cell.fill = penerimaan_fill
+                elif str(column_title).startswith('Pengeluaran_'):
+                    cell.fill = pengeluaran_fill
+                else:
+                    cell.fill = default_fill
+                
                 cell.font = Font(bold=True)
-                cell.border = Border(bottom=Side(style='thin'))
+                cell.border = Border(
+                    left=Side(style='thin'),
+                    right=Side(style='thin'),
+                    top=Side(style='thin'),
+                    bottom=Side(style='thin')
+                )
     
     print(f"Template created with accounts: {', '.join(accounts_data.keys())}")
     return str(output_path.absolute())

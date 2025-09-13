@@ -37,6 +37,11 @@
   - [x] Auto-save to localStorage
 
 ## Recent Improvements
+- [x] Fixed template download functionality
+  - [x] Rewrote file handling to prevent race conditions
+  - [x] Improved CORS configuration for file downloads
+  - [x] Added proper cleanup of temporary files
+  - [x] Enhanced error handling and logging
 - [x] Refactored transaction data structure to support dynamic categories
   - [x] Updated TransactionItem interface for dictionary-based Penerimaan/Pengeluaran
   - [x] Modified TransactionEditor to handle dynamic categories
@@ -93,10 +98,19 @@
 - [ ] Tax calculation and reporting
 - [ ] Budget tracking and alerts
 
-## Testing & Validation (Next Up)
-- [ ] Unit tests for backend API
-  - [ ] Test Excel parsing with multiple accounts
-  - [ ] Test balance calculation logic with dynamic categories
+## Testing & Validation
+- [ ] Unit tests for backend API endpoints
+  - [x] Template download endpoint
+  - [ ] File upload endpoint
+  - [ ] Data processing logic
+- [ ] Integration tests for file upload/download
+- [ ] End-to-end tests for complete workflow
+- [ ] Browser compatibility testing
+
+## Documentation
+- [ ] Update API documentation
+- [ ] Add error code reference
+- [ ] Document template formatories
   - [ ] Test Excel generation with dynamic columns
   - [ ] Test backward compatibility with old format
 

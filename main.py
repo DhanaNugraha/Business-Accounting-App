@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Response, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -109,28 +109,53 @@ async def root() -> Dict[str, str]:
 
 
 @app.get("/api/template")
-async def download_template() -> FileResponse:
+async def download_template() -> Response:
     """Download the Excel template file with the new format."""
+    temp_path = None
     try:
+        print("\n=== Template Download Request ===")
+        print("Generating template file...")
+
+        # Create a temporary file with delete=False to manage it ourselves
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
-            filepath = tmp.name
+            temp_path = tmp.name
 
-        template_path = generate_template.create_template(output_path=filepath)
-        filename = f"accounting_template_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        # Generate the template file
+        generate_template.create_template(output_path=temp_path)
 
-        return FileResponse(
-            template_path,
-            filename=filename,
+        if not os.path.exists(temp_path):
+            raise RuntimeError("Failed to generate template file")
+
+        # Read the file content
+        with open(temp_path, "rb") as f:
+            file_content = f.read()
+
+        # Create the response with the file content
+        filename = f"accounting_template_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        response = Response(
+            content=file_content,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Access-Control-Expose-Headers": "Content-Disposition",
+            },
         )
+
+        return response
+
     except Exception as e:
+        print(f"Error in download_template: {str(e)}")
         raise HTTPException(
-            status_code=500, detail=f"Error generating template: {str(e)}"
+            status_code=500, 
+            detail=f"Error generating template: {str(e)}"
         )
     finally:
-        if os.path.exists(filepath):
-            os.unlink(filepath)
-
+        # Clean up the temporary file
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.unlink(temp_path)
+            except Exception as e:
+                print(f"Error cleaning up temp file: {e}")
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)) -> JSONResponse:
@@ -407,15 +432,12 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
                 sheet_name = account.name[:31]  # Excel sheet name limit
                 ws = wb.create_sheet(title=sheet_name)
                 
-                # Write the header row
-                ws.append(columns_order)
+                # Define fills for different header types
+                default_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+                penerimaan_fill = PatternFill(start_color="E6F7E6", end_color="E6F7E6", fill_type="solid")  # Light green
+                pengeluaran_fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")  # Light red
                 
-                # Write the data rows
-                for _, row in df.iterrows():
-                    ws.append(row.tolist())
-                
-                # Apply formatting
-                header_fill = PatternFill(start_color="D9EAD3", end_color="D9EAD3", fill_type="solid")
+                # Define border style
                 thin_border = Border(
                     left=Side(style='thin'),
                     right=Side(style='thin'),
@@ -423,9 +445,23 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
                     bottom=Side(style='thin')
                 )
                 
-                # Format header row
-                for cell in ws[1]:
-                    cell.fill = header_fill
+                # Write the header row
+                ws.append(columns_order)
+                
+                # Write the data rows first
+                for _, row in df.iterrows():
+                    ws.append(row.tolist())
+                
+                # Now apply header formatting after all data is written
+                for col_num, column_title in enumerate(columns_order, 1):
+                    cell = ws.cell(row=1, column=col_num)
+                    if str(column_title).startswith('Penerimaan_'):
+                        cell.fill = penerimaan_fill
+                    elif str(column_title).startswith('Pengeluaran_'):
+                        cell.fill = pengeluaran_fill
+                    else:
+                        cell.fill = default_fill
+                    
                     cell.font = Font(bold=True)
                     cell.border = thin_border
                 

@@ -94,21 +94,39 @@ apiClient.interceptors.response.use(
 // API functions
 export const downloadTemplate = async (): Promise<void> => {
   try {
-    const response = await apiClient({
-      url: '/api/template',
-      method: 'GET',
+    // Create a new axios instance without the baseURL to handle absolute URLs
+    const downloadClient = axios.create({
+      withCredentials: true,
       responseType: 'blob',
       headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
       },
     });
 
+    const response = await downloadClient.get(
+      `${API_BASE_URL}/api/template`,
+      {
+        responseType: 'blob',
+        headers: {
+          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        },
+      }
+    );
+
+    // Create a URL for the blob
     const url = window.URL.createObjectURL(new Blob([response.data]));
+    
+    // Create a temporary link element
     const link = document.createElement('a');
     link.href = url;
     
+    // Get the filename from the content disposition header or use a default
     const contentDisposition = response.headers['content-disposition'];
-    let filename = 'accounting_template.xlsx';
+    let filename = `accounting_template_${new Date().toISOString().slice(0, 10)}.xlsx`;
     
     if (contentDisposition) {
       const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
@@ -117,15 +135,21 @@ export const downloadTemplate = async (): Promise<void> => {
       }
     }
     
+    // Set the download attribute and filename
     link.setAttribute('download', filename);
+    
+    // Append to body, trigger download, and clean up
     document.body.appendChild(link);
     link.click();
     
-    if (link.parentNode) {
-      link.parentNode.removeChild(link);
-    }
+    // Clean up
+    setTimeout(() => {
+      if (link.parentNode) {
+        link.parentNode.removeChild(link);
+      }
+      window.URL.revokeObjectURL(url);
+    }, 100);
     
-    return Promise.resolve();
   } catch (error) {
     console.error('Error downloading template:', error);
     throw error;
