@@ -22,22 +22,38 @@ export const EditorPage = () => {
     if (!selectedAccount) return;
     
     try {
+      const normalizedTransactions = transactions.map(tx => {
+        // Ensure we have proper default values for the new structure
+        const defaultPenerimaan = typeof tx.penerimaan === 'string' ? {} : (tx.penerimaan || {});
+        const defaultPengeluaran = typeof tx.pengeluaran === 'string' ? {} : (tx.pengeluaran || {});
+        
+        // Calculate saldo if not provided
+        let saldo = tx.saldo;
+        if (typeof saldo !== 'number') {
+          const penerimaanTotal = Object.values(defaultPenerimaan).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
+          const pengeluaranTotal = Object.values(defaultPengeluaran).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
+          saldo = penerimaanTotal - pengeluaranTotal;
+        }
+        
+        return {
+          ...tx,
+          id: tx.id || `tx-${Date.now()}`,
+          tanggal: tx.tanggal || new Date().toISOString().split('T')[0],
+          uraian: tx.uraian || '',
+          penerimaan: defaultPenerimaan,
+          pengeluaran: defaultPengeluaran,
+          saldo: saldo
+        };
+      });
+      
       dispatch({
         type: 'UPDATE_ACCOUNT',
         payload: {
           accountId: selectedAccount.id,
-          transactions: transactions.map(tx => ({
-            ...tx,
-            // Ensure all required fields are present
-            id: tx.id || `tx-${Date.now()}`,
-            tanggal: tx.tanggal || new Date().toISOString().split('T')[0],
-            uraian: tx.uraian || '',
-            penerimaan: tx.penerimaan || '0',
-            pengeluaran: tx.pengeluaran || '0',
-            saldo: tx.saldo || 0
-          }))
+          transactions: normalizedTransactions
         }
       });
+      
       toast.success('Perubahan berhasil disimpan');
     } catch (error) {
       console.error('Error saving transactions:', error);

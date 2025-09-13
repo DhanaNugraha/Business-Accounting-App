@@ -45,6 +45,8 @@ const AppContext = createContext<{
 });
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
+  // Ensure we always return a valid state
+  let newState = { ...state };
   switch (action.type) {
     case 'SET_ACCOUNTS': {
       // Ensure all accounts have required fields
@@ -54,15 +56,48 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
           id: account.id || `account-${Math.random().toString(36).substr(2, 9)}`,
           name: account.name || 'Unnamed Account',
           balance: account.balance || 0,
-          transactions: (account.transactions || []).map((tx: TransactionItem) => ({
-            ...tx,
-            id: tx.id || `tx-${Math.random().toString(36).substr(2, 9)}`,
-            tanggal: tx.tanggal || new Date().toISOString().split('T')[0],
-            uraian: tx.uraian || '',
-            penerimaan: tx.penerimaan || '0',
-            pengeluaran: tx.pengeluaran || '0',
-            saldo: tx.saldo || 0
-          }))
+          transactions: (account.transactions || []).map((tx: any) => {
+            // Handle both old and new transaction formats
+            const normalizedTx: TransactionItem = {
+              ...tx,
+              id: tx.id || `tx-${Math.random().toString(36).substr(2, 9)}`,
+              tanggal: tx.tanggal || new Date().toISOString().split('T')[0],
+              uraian: tx.uraian || '',
+              penerimaan: {},
+              pengeluaran: {},
+              saldo: 0
+            };
+            
+            // Handle old string format for backward compatibility
+            if (typeof tx.penerimaan === 'string') {
+              normalizedTx.penerimaan = { 'Penerimaan': Number(tx.penerimaan) || 0 };
+            } else if (tx.penerimaan && typeof tx.penerimaan === 'object') {
+              // Ensure all values are numbers
+              Object.entries(tx.penerimaan).forEach(([key, value]) => {
+                normalizedTx.penerimaan[key] = Number(value) || 0;
+              });
+            }
+            
+            if (typeof tx.pengeluaran === 'string') {
+              normalizedTx.pengeluaran = { 'Pengeluaran': Number(tx.pengeluaran) || 0 };
+            } else if (tx.pengeluaran && typeof tx.pengeluaran === 'object') {
+              // Ensure all values are numbers
+              Object.entries(tx.pengeluaran).forEach(([key, value]) => {
+                normalizedTx.pengeluaran[key] = Number(value) || 0;
+              });
+            }
+            
+            // Calculate saldo if not provided
+            if (typeof tx.saldo !== 'number') {
+              const penerimaanTotal = Object.values(normalizedTx.penerimaan).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
+              const pengeluaranTotal = Object.values(normalizedTx.pengeluaran).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
+              normalizedTx.saldo = penerimaanTotal - pengeluaranTotal;
+            } else {
+              normalizedTx.saldo = tx.saldo;
+            }
+            
+            return normalizedTx;
+          })
         };
         return newAccount;
       });
@@ -80,37 +115,68 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         currentAccount: action.payload,
       };
     case 'UPDATE_ACCOUNT': {
-      const updatedAccounts = state.accounts.map(account => {
-        if (account.id === action.payload.accountId) {
-          // Recalculate balance based on transactions
-          const transactions = action.payload.transactions || [];
-          const balance = transactions.reduce((sum: number, tx: TransactionItem) => {
-            // Calculate balance based on penerimaan and pengeluaran
-            const penerimaan = parseFloat(tx.penerimaan) || 0;
-            const pengeluaran = parseFloat(tx.pengeluaran) || 0;
-            return sum + penerimaan - pengeluaran;
-          }, 0);
-          
-          return {
-            ...account,
-            transactions: transactions.map((tx: TransactionItem) => {
-              const newTx = {
+      return {
+        ...state,
+        accounts: state.accounts.map(account => {
+          if (account.id === action.payload.accountId) {
+            // Normalize and update transactions
+            const transactions = (action.payload.transactions || []).map((tx: any) => {
+              // Normalize transaction data
+              const normalizedTx: TransactionItem = {
                 ...tx,
                 id: tx.id || `tx-${Math.random().toString(36).substr(2, 9)}`,
                 tanggal: tx.tanggal || new Date().toISOString().split('T')[0],
                 uraian: tx.uraian || '',
-                penerimaan: tx.penerimaan || '0',
-                pengeluaran: tx.pengeluaran || '0',
-                saldo: tx.saldo || 0,
+                penerimaan: {},
+                pengeluaran: {},
+                saldo: 0
               };
-              return newTx;
-            }),
-            balance
-          };
-        }
-        return account;
-      });
-      return { ...state, accounts: updatedAccounts };
+              
+              // Handle both string and object formats for penerimaan
+              if (typeof tx.penerimaan === 'string') {
+                normalizedTx.penerimaan = { 'Penerimaan': Number(tx.penerimaan) || 0 };
+              } else if (tx.penerimaan && typeof tx.penerimaan === 'object') {
+                Object.entries(tx.penerimaan).forEach(([key, value]) => {
+                  normalizedTx.penerimaan[key] = Number(value) || 0;
+                });
+              }
+              
+              // Handle both string and object formats for pengeluaran
+              if (typeof tx.pengeluaran === 'string') {
+                normalizedTx.pengeluaran = { 'Pengeluaran': Number(tx.pengeluaran) || 0 };
+              } else if (tx.pengeluaran && typeof tx.pengeluaran === 'object') {
+                Object.entries(tx.pengeluaran).forEach(([key, value]) => {
+                  normalizedTx.pengeluaran[key] = Number(value) || 0;
+                });
+              }
+              
+              // Calculate saldo if not provided
+              if (typeof tx.saldo !== 'number') {
+                const penerimaanTotal = Object.values(normalizedTx.penerimaan).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
+                const pengeluaranTotal = Object.values(normalizedTx.pengeluaran).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
+                normalizedTx.saldo = penerimaanTotal - pengeluaranTotal;
+              } else {
+                normalizedTx.saldo = tx.saldo;
+              }
+              
+              return normalizedTx;
+            });
+            
+            // Calculate account balance
+            const balance = transactions.reduce((sum: number, tx: TransactionItem) => {
+              return sum + tx.saldo;
+            }, 0);
+            
+            return {
+              ...account,
+              transactions,
+              balance,
+              updatedAt: new Date().toISOString()
+            };
+          }
+          return account;
+        })
+      };
     }
     case 'ADD_ACCOUNT':
       return {
@@ -122,7 +188,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     case 'SET_ERROR':
       return { ...state, error: action.payload, isLoading: false };
     default:
-      return state;
+      return newState;
   }
 };
 

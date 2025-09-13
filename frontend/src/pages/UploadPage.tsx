@@ -52,6 +52,53 @@ const UploadPage = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Helper function to convert string values to numbers in transaction objects
+  const normalizeTransaction = (tx: any): TransactionItem => {
+    const normalized: any = { ...tx };
+    
+    // Convert string values to numbers for all numeric fields
+    if (tx.penerimaan) {
+      if (typeof tx.penerimaan === 'string') {
+        // Handle old format where penerimaan was a string
+        normalized.penerimaan = { 'Penerimaan': Number(tx.penerimaan) || 0 };
+      } else if (typeof tx.penerimaan === 'object') {
+        // Ensure all values in the object are numbers
+        const penerimaan: Record<string, number> = {};
+        Object.entries(tx.penerimaan).forEach(([key, value]) => {
+          penerimaan[key] = Number(value) || 0;
+        });
+        normalized.penerimaan = penerimaan;
+      }
+    } else {
+      normalized.penerimaan = {};
+    }
+
+    if (tx.pengeluaran) {
+      if (typeof tx.pengeluaran === 'string') {
+        // Handle old format where pengeluaran was a string
+        normalized.pengeluaran = { 'Pengeluaran': Number(tx.pengeluaran) || 0 };
+      } else if (typeof tx.pengeluaran === 'object') {
+        // Ensure all values in the object are numbers
+        const pengeluaran: Record<string, number> = {};
+        Object.entries(tx.pengeluaran).forEach(([key, value]) => {
+          pengeluaran[key] = Number(value) || 0;
+        });
+        normalized.pengeluaran = pengeluaran;
+      }
+    } else {
+      normalized.pengeluaran = {};
+    }
+
+    // Calculate saldo if not provided
+    if (typeof tx.saldo !== 'number') {
+      const penerimaanTotal = Object.values(normalized.penerimaan).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
+      const pengeluaranTotal = Object.values(normalized.pengeluaran).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
+      normalized.saldo = penerimaanTotal - pengeluaranTotal;
+    }
+
+    return normalized as TransactionItem;
+  };
+
   // Process and update accounts in the app state
   const processAndUpdateAccounts = (accounts: AccountData[]): boolean => {
     if (!accounts || accounts.length === 0) return false;
@@ -61,12 +108,10 @@ const UploadPage = () => {
       name: account.name || 'Akun Tanpa Nama',
       balance: account.balance || 0,
       transactions: (account.transactions || []).map(tx => ({
+        ...normalizeTransaction(tx),
         id: tx.id || `tx-${Math.random().toString(36).substr(2, 9)}`,
         tanggal: tx.tanggal || new Date().toISOString().split('T')[0],
-        uraian: tx.uraian || '',
-        penerimaan: tx.penerimaan || '0',
-        pengeluaran: tx.pengeluaran || '0',
-        saldo: tx.saldo || 0
+        uraian: tx.uraian || ''
       })),
       code: account.code,
       type: account.type,

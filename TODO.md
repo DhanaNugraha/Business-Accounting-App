@@ -37,6 +37,12 @@
   - [x] Auto-save to localStorage
 
 ## Recent Improvements
+- [x] Refactored transaction data structure to support dynamic categories
+  - [x] Updated TransactionItem interface for dictionary-based Penerimaan/Pengeluaran
+  - [x] Modified TransactionEditor to handle dynamic categories
+  - [x] Updated UploadPage and AppContext for new data structure
+  - [x] Added data normalization for backward compatibility
+  - [x] Fixed TypeScript type conflicts and improved type safety
 - [x] Fixed TypeScript type conflicts in UploadPage
 - [x] Improved error handling and user feedback
 - [x] Cleaned up unused code and imports
@@ -46,8 +52,23 @@
 ## Testing & Validation (Next Up)
 - [ ] Unit tests for backend API
   - [ ] Test Excel parsing with multiple accounts
-  - [ ] Test balance calculation logic
-  - [ ] Test Excel generation
+  - [ ] Test balance calculation logic with dynamic categories
+  - [ ] Test Excel generation with dynamic columns
+  - [ ] Test backward compatibility with old format
+
+## UI/UX Improvements
+- [ ] Add validation for category names
+- [ ] Implement duplicate category prevention
+- [ ] Add tooltips for category management
+- [ ] Improve mobile responsiveness for transaction editor
+- [ ] Add visual indicators for category totals
+
+## Future Enhancements
+- [ ] Add category management interface
+- [ ] Implement category filtering and grouping
+- [ ] Add support for category-specific reporting
+- [ ] Implement data validation rules per category
+- [ ] Add bulk category operations
 - [ ] Frontend component tests
   - [ ] Transaction editor functionality
   - [ ] Account switching

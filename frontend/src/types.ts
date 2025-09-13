@@ -2,8 +2,8 @@ export interface TransactionItem {
   id: string;
   tanggal: string;
   uraian: string;
-  penerimaan: string;
-  pengeluaran: string;
+  penerimaan: Record<string, number>;
+  pengeluaran: Record<string, number>;
   saldo: number;
 }
 

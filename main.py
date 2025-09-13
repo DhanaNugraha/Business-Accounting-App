@@ -45,8 +45,8 @@ class TransactionItem(BaseModel):
 
     tanggal: str
     uraian: str
-    penerimaan: str
-    pengeluaran: str
+    penerimaan: Dict[str, float] = {}
+    pengeluaran: Dict[str, float] = {}
     saldo: float
 
     class Config:
@@ -152,16 +152,21 @@ async def save_file(data: TemplateData) -> Response:
 def _process_excel_sheets(xls: pd.ExcelFile) -> List[Dict[str, Any]]:
     """Process all sheets in the Excel file and return account data."""
     accounts = []
-    required_columns = ["Tanggal", "Uraian", "Penerimaan", "Pengeluaran", "Saldo"]
+    required_columns = ["Tanggal", "Uraian", "Saldo"]
 
     for sheet_name in xls.sheet_names:
         try:
-            df = pd.read_excel(xls, sheet_name=sheet_name)
-
+            df = pd.read_excel(xls, sheet_name=sheet_name).fillna("")
+            
+            # Check for required columns
             if not all(col in df.columns for col in required_columns):
                 continue
+                
+            # Get all Penerimaan and Pengeluaran columns
+            penerimaan_cols = [col for col in df.columns if col.startswith("Penerimaan_")]
+            pengeluaran_cols = [col for col in df.columns if col.startswith("Pengeluaran_")]
 
-            transactions = _process_transactions(df)
+            transactions = _process_transactions(df, penerimaan_cols, pengeluaran_cols)
             accounts.append({"name": sheet_name, "transactions": transactions})
         except Exception as e:
             print(f"Error processing sheet '{sheet_name}': {str(e)}")
@@ -170,50 +175,108 @@ def _process_excel_sheets(xls: pd.ExcelFile) -> List[Dict[str, Any]]:
     return accounts
 
 
-def _process_transactions(df: pd.DataFrame) -> List[Dict[str, Any]]:
-    """Convert DataFrame rows to transaction dictionaries."""
+def _process_transactions(
+    df: pd.DataFrame, 
+    penerimaan_cols: List[str], 
+    pengeluaran_cols: List[str]
+) -> List[Dict[str, Any]]:
+    """Convert DataFrame rows to transaction dictionaries with dynamic columns."""
     transactions = []
+    
     for _, row in df.iterrows():
-        transaction = {
-            "tanggal": row["Tanggal"].strftime("%Y-%m-%d")
-            if pd.notna(row["Tanggal"])
-            else "",
-            "uraian": str(row["Uraian"]) if pd.notna(row["Uraian"]) else "",
-            "penerimaan": str(row["Penerimaan"]) if pd.notna(row["Penerimaan"]) else "",
-            "pengeluaran": str(row["Pengeluaran"])
-            if pd.notna(row["Pengeluaran"])
-            else "",
-            "saldo": float(row["Saldo"]) if pd.notna(row["Saldo"]) else 0.0,
-        }
-        transactions.append(transaction)
+        try:
+            # Process Penerimaan
+            penerimaan = {}
+            for col in penerimaan_cols:
+                value = row[col]
+                if pd.notna(value) and value != "" and float(value) != 0:
+                    category = col.replace("Penerimaan_", "")
+                    penerimaan[category] = float(value)
+            
+            # Process Pengeluaran
+            pengeluaran = {}
+            for col in pengeluaran_cols:
+                value = row[col]
+                if pd.notna(value) and value != "" and float(value) != 0:
+                    category = col.replace("Pengeluaran_", "")
+                    pengeluaran[category] = float(value)
+            
+            # Create transaction
+            transaction = {
+                "tanggal": row["Tanggal"].strftime("%Y-%m-%d") if pd.notna(row["Tanggal"]) else "",
+                "uraian": str(row["Uraian"]) if pd.notna(row["Uraian"]) else "",
+                "penerimaan": penerimaan,
+                "pengeluaran": pengeluaran,
+                "saldo": float(row["Saldo"]) if pd.notna(row["Saldo"]) else 0.0,
+            }
+            transactions.append(transaction)
+            
+        except Exception as e:
+            print(f"Error processing row {_ + 1}: {str(e)}")
+            continue
+            
     return transactions
 
 
 def _create_excel_file(data: TemplateData, output_path: str) -> None:
-    """Create an Excel file from the template data."""
+    """Create an Excel file from the template data with dynamic columns."""
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         for account in data.accounts:
-            rows = [
-                {
+            if not account.transactions:
+                continue
+                
+            # Get all unique categories across all transactions
+            all_penerimaan = set()
+            all_pengeluaran = set()
+            
+            for t in account.transactions:
+                all_penerimaan.update(t.penerimaan.keys())
+                all_pengeluaran.update(t.pengeluaran.keys())
+            
+            # Create rows with dynamic columns
+            rows = []
+            for t in account.transactions:
+                row = {
                     "Tanggal": t.tanggal,
                     "Uraian": t.uraian,
-                    "Penerimaan": t.penerimaan,
-                    "Pengeluaran": t.pengeluaran,
-                    "Saldo": t.saldo,
                 }
-                for t in account.transactions
-            ]
-
+                
+                # Add Penerimaan columns
+                for category in sorted(all_penerimaan):
+                    col_name = f"Penerimaan_{category}"
+                    row[col_name] = t.penerimaan.get(category, 0)
+                
+                # Add Pengeluaran columns
+                for category in sorted(all_pengeluaran):
+                    col_name = f"Pengeluaran_{category}"
+                    row[col_name] = t.pengeluaran.get(category, 0)
+                
+                # Add Saldo
+                row["Saldo"] = t.saldo
+                
+                rows.append(row)
+            
+            # Create DataFrame and write to Excel
             df = pd.DataFrame(rows)
+            
+            # Reorder columns: Tanggal, Uraian, Penerimaan_*, Pengeluaran_*, Saldo
+            columns_order = ["Tanggal", "Uraian"]
+            columns_order.extend(sorted([col for col in df.columns if col.startswith("Penerimaan_")]))
+            columns_order.extend(sorted([col for col in df.columns if col.startswith("Pengeluaran_")]))
+            columns_order.append("Saldo")
+            
+            df = df[columns_order]
             df.to_excel(writer, sheet_name=account.name, index=False)
 
             # Auto-adjust column widths
             worksheet = writer.sheets[account.name]
-            for idx, column in enumerate(df.columns):
-                column_length = (
-                    max(df[column].astype(str).map(len).max(), len(column)) + 2
+            for column in df:
+                column_length = min(
+                    max(df[column].astype(str).map(len).max(), len(column)) + 2,
+                    30  # Max width of 30
                 )
-                worksheet.column_dimensions[chr(65 + idx)].width = column_length
+                col_idx = df.columns.get_loc(column)
+                worksheet.column_dimensions[chr(65 + col_idx)].width = column_length
 
 
 if __name__ == "__main__":

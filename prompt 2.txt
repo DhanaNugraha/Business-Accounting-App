@@ -22,21 +22,25 @@ Please generate a **full-stack project** with the following requirements:
 
 ## 2. Excel Template Format
 
-The template file should have these columns (in Indonesian):
+The template file will have dynamic columns based on the transaction categories. The basic structure is:
 
-1. **Tanggal** → date of transaction (YYYY-MM-DD)
-2. **Uraian** → description of transaction
-3. **Penerimaan** → one or more income entries (name + amount)
-4. **Pengeluaran** → one or more expense entries (name + amount)
-5. **Saldo** → auto-calculated balance (running total)
+1. **Fixed Columns**:
+   - **Tanggal** → date of transaction (YYYY-MM-DD)
+   - **Uraian** → description of transaction
+   - **Saldo** → auto-calculated balance (running total)
+
+2. **Dynamic Columns**:
+   - **Penerimaan_*** → one column for each income category (e.g., Penerimaan_Tunai, Penerimaan_Transfer)
+   - **Pengeluaran_*** → one column for each expense category (e.g., Pengeluaran_Supplier, Pengeluaran_Internet)
 
 ### Example Rows:
 
-| Tanggal    | Uraian           | Penerimaan          | Pengeluaran         | Saldo      |
-| ---------- | ---------------- | ------------------- | ------------------- | ---------- |
-| 2025-01-01 | Modal Awal       | Tunai: 10,000,000   |                     | 10,000,000 |
-| 2025-01-03 | Beli Barang      |                     | Supplier: 2,000,000 | 8,000,000  |
-| 2025-01-05 | Penjualan Produk | Transfer: 3,000,000 |                     | 11,000,000 |
+| Tanggal    | Uraian           | Penerimaan_Tunai | Penerimaan_Transfer | Pengeluaran_Supplier | Pengeluaran_Internet | Saldo      |
+|------------|------------------|------------------|---------------------|----------------------|----------------------|------------|
+| 2025-01-01 | Modal Awal       | 10,000,000      |                     |                      |                      | 10,000,000 |
+| 2025-01-03 | Beli Barang      |                  |                     | 2,000,000            |                      | 8,000,000  |
+| 2025-01-05 | Penjualan Produk |                  | 3,000,000           |                      |                      | 11,000,000 |
+| 2025-01-06 | Bayar Internet   |                  |                     |                      | 500,000              | 10,500,000 |
 
 ---
 
@@ -128,22 +132,30 @@ Pages/components:
         {
           "tanggal": "2025-01-01",
           "uraian": "Modal Awal",
-          "penerimaan": [{"source": "Tunai", "amount": 10000000}],
-          "pengeluaran": [],
+          "penerimaan": {"Tunai": 10000000},
+          "pengeluaran": {},
           "saldo": 10000000
         },
         {
           "tanggal": "2025-01-03",
           "uraian": "Beli Barang",
-          "penerimaan": [],
-          "pengeluaran": [{"source": "Supplier", "amount": 2000000}],
+          "penerimaan": {},
+          "pengeluaran": {"Supplier": 2000000},
           "saldo": 8000000
         }
       ]
     },
     {
       "name": "Bank",
-      "transactions": []
+      "transactions": [
+        {
+          "tanggal": "2025-01-05",
+          "uraian": "Pendapatan Jasa",
+          "penerimaan": {"Transfer": 3000000},
+          "pengeluaran": {},
+          "saldo": 3000000
+        }
+      ]
     }
   ]
 }
