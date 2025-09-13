@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { TransactionItem } from '@/types';
-import { PencilIcon, TrashIcon, PlusIcon, CheckIcon as CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PlusIcon, CheckIcon as CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 interface TransactionEditorProps {
   transactions: TransactionItem[];
@@ -9,44 +9,40 @@ interface TransactionEditorProps {
 }
 
 export const TransactionEditor = ({ transactions, onSave, accountName }: TransactionEditorProps) => {
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editedTransactions, setEditedTransactions] = useState<TransactionItem[]>(transactions);
   const [isAdding, setIsAdding] = useState(false);
-  const [newPenerimaan, setNewPenerimaan] = useState({ category: '', amount: '' });
-  const [newPengeluaran, setNewPengeluaran] = useState({ category: '', amount: '' });
+  const [editedTransactions, setEditedTransactions] = useState<TransactionItem[]>(transactions);
   const [simpleForm, setSimpleForm] = useState({
     tanggal: new Date().toISOString().split('T')[0],
     uraian: '',
     jumlah: '',
-    tipe: 'penerimaan',
+    tipe: 'penerimaan' as 'penerimaan' | 'pengeluaran',
     kategori: ''
   });
+
+  // Extract unique categories from existing transactions
+  const getExistingCategories = useCallback(() => {
+    const categories = new Set<string>();
+    
+    editedTransactions.forEach(tx => {
+      Object.keys(tx.penerimaan || {}).forEach(cat => categories.add(cat));
+      Object.keys(tx.pengeluaran || {}).forEach(cat => categories.add(cat));
+    });
+    
+    return Array.from(categories).sort();
+  }, [editedTransactions]);
+  
+  const existingCategories = getExistingCategories();
 
   // Update local state when transactions prop changes
   useEffect(() => {
     setEditedTransactions(transactions);
   }, [transactions]);
 
-  const handleEdit = (id: string) => {
-    console.log('Edit button clicked for transaction ID:', id);
-    const transactionToEdit = editedTransactions.find(tx => tx.id === id);
-    console.log('Transaction to edit:', transactionToEdit);
-    if (transactionToEdit) {
-      setNewPenerimaan({ category: '', amount: '' });
-      setNewPengeluaran({ category: '', amount: '' });
-      setEditingId(id);
-      console.log('Editing ID set to:', id);
-    } else {
-      console.error('Transaction not found for ID:', id);
-    }
-  };
-
   const handleSave = () => {
     console.log('Save button clicked');
     if (editedTransactions.length > 0) {
       console.log('Saving all transactions:', editedTransactions);
       onSave(editedTransactions);
-      setEditingId(null);
     } else {
       console.log('No transactions to save');
     }
@@ -56,6 +52,24 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     const updated = editedTransactions.filter(t => t.id !== id);
     setEditedTransactions(updated);
     onSave(updated);
+  };
+
+  // Handle input change for simple form
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setSimpleForm(prev => ({
+      ...prev,
+      [name]: name === 'jumlah' ? value.replace(/\D/g, '') : value
+    }));
+  };
+
+  // Format currency
+  const formatCurrency = (value: string) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(Number(value) || 0);
   };
 
   const handleSimpleAdd = (e: React.FormEvent) => {
@@ -88,7 +102,6 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
 
     const updated = [...editedTransactions, newTx];
     setEditedTransactions(updated);
-    // Save the updated transactions to the parent component
     onSave(updated);
     
     // Reset the form
@@ -103,70 +116,25 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     setIsAdding(false);
   };
 
-  const handleInputChange = (id: string, field: keyof Omit<TransactionItem, 'penerimaan' | 'pengeluaran'>, value: string) => {
-    setEditedTransactions(prev => 
-      prev.map(tx => 
-        tx.id === id ? { ...tx, [field]: value } : tx
-      )
-    );
-  };
-
-  const handlePenerimaanChange = (id: string, category: string, value: string) => {
-    setEditedTransactions(prev => 
-      prev.map(tx => {
-        if (tx.id !== id) return tx;
-        const newPenerimaan = { ...tx.penerimaan };
-        if (value === '') {
-          delete newPenerimaan[category];
-        } else {
-          newPenerimaan[category] = Number(value) || 0;
-        }
-        return { ...tx, penerimaan: newPenerimaan };
-      })
-    );
-  };
-
-  const handlePengeluaranChange = (id: string, category: string, value: string) => {
-    setEditedTransactions(prev => 
-      prev.map(tx => {
-        if (tx.id !== id) return tx;
-        const newPengeluaran = { ...tx.pengeluaran };
-        if (value === '') {
-          delete newPengeluaran[category];
-        } else {
-          newPengeluaran[category] = Number(value) || 0;
-        }
-        return { ...tx, pengeluaran: newPengeluaran };
-      })
-    );
-  };
-
   return (
     <div className="bg-white shadow rounded-lg p-6">
-      
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">{accountName} Transactions</h2>
         <div className="space-x-2">
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('Save button clicked directly');
-              handleSave();
-            }}
+            type="button"
+            onClick={handleSave}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
           >
             <CheckCircleIcon className="-ml-1 mr-2 h-5 w-5" />
             Save Changes
           </button>
           <button
-            onClick={() => {
-              console.log('Add Transaction button clicked');
-              setIsAdding(!isAdding);
-              setEditingId(null);
-              console.log('Toggling transaction form');
-            }}
-            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${isAdding ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-600 hover:bg-blue-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+            type="button"
+            onClick={() => setIsAdding(!isAdding)}
+            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
+              isAdding ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-600 hover:bg-blue-700'
+            } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
           >
             <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
             {isAdding ? 'Sembunyikan Form' : 'Tambah Transaksi'}
@@ -195,21 +163,10 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
                   <input
                     type="date"
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
+                    name="tanggal"
+                    className="block w-full bg-white border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
                     value={simpleForm.tanggal}
-                    onChange={(e) => setSimpleForm({...simpleForm, tanggal: e.target.value})}
-                    required
-                  />
-                </div>
-                
-                <div className="lg:col-span-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Uraian</label>
-                  <input
-                    type="text"
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
-                    value={simpleForm.uraian}
-                    onChange={(e) => setSimpleForm({...simpleForm, uraian: e.target.value})}
-                    placeholder="Deskripsi transaksi"
+                    onChange={handleInputChange}
                     required
                   />
                 </div>
@@ -217,9 +174,10 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                 <div className="lg:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipe</label>
                   <select
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
+                    name="tipe"
+                    className="block w-full bg-white border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
                     value={simpleForm.tipe}
-                    onChange={(e) => setSimpleForm({...simpleForm, tipe: e.target.value as 'penerimaan' | 'pengeluaran'})}
+                    onChange={handleInputChange}
                   >
                     <option value="penerimaan">Penerimaan</option>
                     <option value="pengeluaran">Pengeluaran</option>
@@ -228,12 +186,40 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                 
                 <div className="lg:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="kategori"
+                      list="categoryOptions"
+                      className="block w-full bg-white border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2 pr-8 appearance-none"
+                      value={simpleForm.kategori}
+                      onChange={handleInputChange}
+                      placeholder="Pilih atau ketik baru"
+                      required
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                      <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <datalist id="categoryOptions">
+                      {existingCategories.map((category) => (
+                        <option key={category} value={category} />
+                      ))}
+                    </datalist>
+                  </div>
+                </div>
+                
+                <div className="lg:col-span-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Uraian</label>
                   <input
                     type="text"
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
-                    value={simpleForm.kategori}
-                    onChange={(e) => setSimpleForm({...simpleForm, kategori: e.target.value})}
-                    placeholder="Kategori"
+                    name="uraian"
+                    className="block w-full bg-white border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
+                    value={simpleForm.uraian}
+                    onChange={handleInputChange}
+                    placeholder="Deskripsi transaksi"
+                    required
                   />
                 </div>
                 
@@ -244,14 +230,20 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                       Rp
                     </span>
                     <input
-                      type="number"
-                      className="block w-full min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-sm p-2"
+                      type="text"
+                      name="jumlah"
+                      className="block w-full min-w-0 flex-1 bg-white border border-gray-300 rounded-none rounded-r-md focus:ring-blue-500 focus:border-blue-500 text-sm p-2"
                       value={simpleForm.jumlah}
-                      onChange={(e) => setSimpleForm({...simpleForm, jumlah: e.target.value})}
+                      onChange={handleInputChange}
                       placeholder="0"
                       required
                     />
                   </div>
+                  {simpleForm.jumlah && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      {formatCurrency(simpleForm.jumlah)}
+                    </p>
+                  )}
                 </div>
                 
                 <div className="lg:col-span-1 flex items-end">
@@ -282,206 +274,39 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            
             {editedTransactions.map((tx, index) => (
               <tr key={tx.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 w-32">
-                  {editingId === tx.id ? (
-                    <input
-                      type="date"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      value={tx.tanggal}
-                      onChange={(e) => handleInputChange(tx.id, 'tanggal', e.target.value)}
-                    />
-                  ) : (
-                    new Date(tx.tanggal).toLocaleDateString('id-ID')
-                  )}
+                  {new Date(tx.tanggal).toLocaleDateString('id-ID')}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-900 min-w-[200px]">
-                  {editingId === tx.id ? (
-                    <input
-                      type="text"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                      value={tx.uraian}
-                      onChange={(e) => handleInputChange(tx.id, 'uraian', e.target.value)}
-                    />
-                  ) : (
-                    <div className="break-words">{tx.uraian}</div>
-                  )}
+                  <div className="break-words">{tx.uraian}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 w-48">
-                  <div className="space-y-2">
-                    {editingId === tx.id ? (
-                      <>
-                        {Object.entries(tx.penerimaan || {}).map(([category, amount]) => (
-                          <div key={category} className="flex items-center justify-end space-x-2">
-                            <span className="text-sm">{category}:</span>
-                            <input
-                              type="number"
-                              className="block w-24 text-right rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                              value={amount}
-                              onChange={(e) => handlePenerimaanChange(tx.id, category, e.target.value)}
-                              placeholder="0"
-                            />
-                            <button
-                              onClick={() => handlePenerimaanChange(tx.id, category, '')}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <XMarkIcon className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                        <div className="flex items-center justify-end space-x-2">
-                          <input
-                            type="text"
-                            className="block w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            value={newPenerimaan.category}
-                            onChange={(e) => setNewPenerimaan({...newPenerimaan, category: e.target.value})}
-                            placeholder="Kategori"
-                          />
-                          <input
-                            type="number"
-                            className="block w-24 text-right rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            value={newPenerimaan.amount}
-                            onChange={(e) => setNewPenerimaan({...newPenerimaan, amount: e.target.value})}
-                            placeholder="Jumlah"
-                          />
-                          <button
-                            onClick={() => {
-                              if (newPenerimaan.category && newPenerimaan.amount) {
-                                handlePenerimaanChange(tx.id, newPenerimaan.category, newPenerimaan.amount);
-                                setNewPenerimaan({ category: '', amount: '' });
-                              }
-                            }}
-                            className="text-green-600 hover:text-green-800"
-                          >
-                            <PlusIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="space-y-1 text-right">
-                        {Object.entries(tx.penerimaan || {}).map(([category, amount]) => (
-                          <div key={category} className="flex justify-between">
-                            <span className="text-sm">{category}:</span>
-                            <span>{Number(amount).toLocaleString('id-ID')}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {Object.entries(tx.penerimaan || {}).map(([category, amount]) => (
+                    <div key={category} className="text-right">
+                      {category}: {formatCurrency(amount.toString())}
+                    </div>
+                  ))}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 w-48">
-                  <div className="space-y-2">
-                    {editingId === tx.id ? (
-                      <>
-                        {Object.entries(tx.pengeluaran || {}).map(([category, amount]) => (
-                          <div key={category} className="flex items-center justify-end space-x-2">
-                            <span className="text-sm">{category}:</span>
-                            <input
-                              type="number"
-                              className="block w-24 text-right rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                              value={amount}
-                              onChange={(e) => handlePengeluaranChange(tx.id, category, e.target.value)}
-                              placeholder="0"
-                            />
-                            <button
-                              onClick={() => handlePengeluaranChange(tx.id, category, '')}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <XMarkIcon className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                        <div className="flex items-center justify-end space-x-2">
-                          <input
-                            type="text"
-                            className="block w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            value={newPengeluaran.category}
-                            onChange={(e) => setNewPengeluaran({...newPengeluaran, category: e.target.value})}
-                            placeholder="Kategori"
-                          />
-                          <input
-                            type="number"
-                            className="block w-24 text-right rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            value={newPengeluaran.amount}
-                            onChange={(e) => setNewPengeluaran({...newPengeluaran, amount: e.target.value})}
-                            placeholder="Jumlah"
-                          />
-                          <button
-                            onClick={() => {
-                              if (newPengeluaran.category && newPengeluaran.amount) {
-                                handlePengeluaranChange(tx.id, newPengeluaran.category, newPengeluaran.amount);
-                                setNewPengeluaran({ category: '', amount: '' });
-                              }
-                            }}
-                            className="text-green-600 hover:text-green-800"
-                          >
-                            <PlusIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="space-y-1 text-right">
-                        {Object.entries(tx.pengeluaran || {}).map(([category, amount]) => (
-                          <div key={category} className="flex justify-between">
-                            <span className="text-sm">{category}:</span>
-                            <span>{Number(amount).toLocaleString('id-ID')}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {Object.entries(tx.pengeluaran || {}).map(([category, amount]) => (
+                    <div key={category} className="text-right">
+                      {category}: {formatCurrency(amount.toString())}
+                    </div>
+                  ))}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900 w-32">
-                  {Number(tx.saldo || 0).toLocaleString('id-ID')}
+                  {formatCurrency(tx.saldo?.toString() || '0')}
                 </td>
-                <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium w-24">
-                  <div className="flex justify-end">
-                    {editingId === tx.id ? (
-                      <div className="flex space-x-1">
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleSave();
-                          }}
-                          className="text-green-600 hover:text-green-900 p-0.5 rounded-full hover:bg-green-100"
-                          title="Simpan"
-                        >
-                          <CheckCircleIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setEditingId(null);
-                          }}
-                          className="text-red-600 hover:text-red-900 p-0.5 rounded-full hover:bg-red-100"
-                          title="Batal"
-                        >
-                          <XMarkIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex space-x-1">
-                        <button
-                          onClick={() => handleEdit(tx.id)}
-                          className="text-blue-600 hover:text-blue-900 p-0.5 rounded-full hover:bg-blue-100"
-                          title="Edit"
-                        >
-                          <PencilIcon className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(tx.id)}
-                          className="text-red-600 hover:text-red-900 p-0.5 rounded-full hover:bg-red-100"
-                          title="Hapus"
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <button
+                    onClick={() => handleDelete(tx.id)}
+                    className="text-red-600 hover:text-red-900"
+                    title="Hapus transaksi"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
                 </td>
               </tr>
             ))}

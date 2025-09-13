@@ -36,6 +36,23 @@
   - [x] Handle transaction CRUD operations
   - [x] Auto-save to localStorage
 
+## Frontend Pages
+- [x] Upload Page
+  - [x] File upload component
+  - [x] Drag and drop support
+  - [x] File type validation
+  - [x] Progress indicators
+- [x] Editor Page
+  - [x] Transaction table with inline editing
+  - [x] Add/delete transaction functionality
+  - [x] Save changes button
+  - [x] Form validation
+- [x] Reports Page
+  - [x] Financial summary cards
+  - [x] Charts for income/expenses
+  - [] Export to PDF/Excel
+  - [] Date range filtering
+
 ## Recent Improvements
 - [x] Fixed template download functionality
   - [x] Rewrote file handling to prevent race conditions
@@ -89,8 +106,6 @@
   - [ ] Implement dark mode
 
 ## Backlog
-- [ ] User authentication and authorization
-- [ ] Multi-user support with data separation
 - [ ] Cloud backup and sync
 - [ ] Recurring transactions
 - [ ] Receipt image upload and attachment
@@ -111,8 +126,13 @@
 - [ ] Update API documentation
 - [ ] Add error code reference
 - [ ] Document template formatories
+- [ ] Update documentation for new features
   - [ ] Test Excel generation with dynamic columns
   - [ ] Test backward compatibility with old format
+- [ ] Add JSDoc comments
+  - [ ] Component props and state
+  - [ ] Utility functions
+  - [ ] Custom hooks
 
 ## UI/UX Improvements
 - [ ] Add validation for category names
@@ -139,39 +159,7 @@
   - [ ] Template download
   - [ ] Save/load from localStorage
 
-## Frontend Pages
-- [x] Upload Page
-  - [x] File upload component
-  - [x] Drag and drop support
-  - [x] File type validation
-  - [x] Progress indicators
-- [x] Editor Page
-  - [x] Transaction table with inline editing
-  - [x] Add/delete transaction functionality
-  - [x] Save changes button
-  - [x] Form validation
-- [x] Reports Page
-  - [x] Financial summary cards
-  - [x] Charts for income/expenses
-  - [x] Export to PDF/Excel
-  - [x] Date range filtering
 
-## Documentation
-- [x] Basic README
-- [ ] Update documentation for new features
-  - [x] New Excel format specification
-  - [x] API endpoint documentation
-  - [x] Development setup guide
-- [ ] Add JSDoc comments
-  - [ ] Component props and state
-  - [ ] Utility functions
-  - [ ] Custom hooks
 
-## Future Enhancements
-- [ ] Transaction categories and tags
-- [ ] Recurring transactions
-- [ ] Import/export templates
-- [ ] Keyboard shortcuts
-- [ ] Data visualization
-  - [ ] Expense/income charts
-  - [ ] Cash flow forecasting
+
+
