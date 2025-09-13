@@ -2,6 +2,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import type { TransactionItem } from '@/types';
 import { TransactionEditor } from '@/components/TransactionEditor';
 import { toast } from 'react-hot-toast';
+import { saveTransactions } from '@/services/api';
 
 export const EditorPage = () => {
   const { state, dispatch } = useAppContext();
@@ -66,25 +67,10 @@ export const EditorPage = () => {
         }]
       };
 
-      // Then save to the backend
-      const response = await fetch('http://localhost:8000/api/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(saveData),
-      });
+      // Use the API service function to handle the file download
+      await saveTransactions(saveData);
       
-      if (!response.ok) {
-        throw new Error('Failed to save transactions');
-      }
-      
-      const result = await response.json();
-      
-      // Update local state with any server-side changes
-      if (result.success) {
-        toast.success('Transactions saved successfully');
-      }
+      toast.success('Transactions saved successfully');
     } catch (error) {
       console.error('Error saving transactions:', error);
       toast.error('Failed to save transactions');

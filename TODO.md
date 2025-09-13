@@ -52,6 +52,13 @@
 - [x] Fixed file handling in backend save endpoint
 - [ ] Resolve CORS issues between frontend and backend
 
+## Current Task
+- [ ] Fix Excel column processing
+  - [ ] Handle multiple Penerimaan_* and Pengeluaran_* columns
+  - [ ] Update transaction processing to handle dynamic categories
+  - [ ] Ensure proper balance calculation with multiple categories
+  - [ ] Update type definitions for dynamic columns
+
 ## Testing & Validation (Next Up)
 - [ ] Unit tests for backend API
   - [ ] Test Excel parsing with multiple accounts

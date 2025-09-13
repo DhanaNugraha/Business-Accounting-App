@@ -23,7 +23,6 @@ interface AccountData {
   updatedAt?: string;
 }
 
-
 interface FileValidationError {
   code: string;
   message: string;
@@ -38,11 +37,11 @@ const ALLOWED_FILE_TYPES = [
 
 const UploadPage = () => {
   const [isDragging, setIsDragging] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
   const [validationError, setValidationError] = useState<FileValidationError | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { dispatch } = useAppContext();
+  const { dispatch, state } = useAppContext();
   const navigate = useNavigate();
 
   const handleDownloadTemplate = async () => {
@@ -67,53 +66,6 @@ const UploadPage = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Helper function to convert string values to numbers in transaction objects
-  const normalizeTransaction = (tx: any): TransactionItem => {
-    const normalized: any = { ...tx };
-    
-    // Convert string values to numbers for all numeric fields
-    if (tx.penerimaan) {
-      if (typeof tx.penerimaan === 'string') {
-        // Handle old format where penerimaan was a string
-        normalized.penerimaan = { 'Penerimaan': Number(tx.penerimaan) || 0 };
-      } else if (typeof tx.penerimaan === 'object') {
-        // Ensure all values in the object are numbers
-        const penerimaan: Record<string, number> = {};
-        Object.entries(tx.penerimaan).forEach(([key, value]) => {
-          penerimaan[key] = Number(value) || 0;
-        });
-        normalized.penerimaan = penerimaan;
-      }
-    } else {
-      normalized.penerimaan = {};
-    }
-
-    if (tx.pengeluaran) {
-      if (typeof tx.pengeluaran === 'string') {
-        // Handle old format where pengeluaran was a string
-        normalized.pengeluaran = { 'Pengeluaran': Number(tx.pengeluaran) || 0 };
-      } else if (typeof tx.pengeluaran === 'object') {
-        // Ensure all values in the object are numbers
-        const pengeluaran: Record<string, number> = {};
-        Object.entries(tx.pengeluaran).forEach(([key, value]) => {
-          pengeluaran[key] = Number(value) || 0;
-        });
-        normalized.pengeluaran = pengeluaran;
-      }
-    } else {
-      normalized.pengeluaran = {};
-    }
-
-    // Calculate saldo if not provided
-    if (typeof tx.saldo !== 'number') {
-      const penerimaanTotal = Object.values(normalized.penerimaan).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
-      const pengeluaranTotal = Object.values(normalized.pengeluaran).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
-      normalized.saldo = penerimaanTotal - pengeluaranTotal;
-    }
-
-    return normalized as TransactionItem;
-  };
-
   // Process and update accounts in the app state
   const processAndUpdateAccounts = (accounts: AccountData[]): boolean => {
     if (!accounts || accounts.length === 0) return false;
@@ -121,13 +73,32 @@ const UploadPage = () => {
     const mappedAccounts = accounts.map(account => ({
       id: account.id || `acc-${Math.random().toString(36).substr(2, 9)}`,
       name: account.name || 'Akun Tanpa Nama',
-      balance: account.balance || 0,
-      transactions: (account.transactions || []).map(tx => ({
-        ...normalizeTransaction(tx),
-        id: tx.id || `tx-${Math.random().toString(36).substr(2, 9)}`,
-        tanggal: tx.tanggal || new Date().toISOString().split('T')[0],
-        uraian: tx.uraian || ''
-      })),
+      balance: typeof account.balance === 'number' ? account.balance : 0,
+      transactions: (account.transactions || []).map(tx => {
+        // Ensure we have proper default values for the new structure
+        const defaultPenerimaan = typeof tx.penerimaan === 'string' ? {} : (tx.penerimaan || {});
+        const defaultPengeluaran = typeof tx.pengeluaran === 'string' ? {} : (tx.pengeluaran || {});
+        
+        // Calculate saldo if not provided
+        let saldo = typeof tx.saldo === 'number' ? tx.saldo : 0;
+        if (saldo === 0) {
+          const penerimaanTotal = Object.values(defaultPenerimaan).reduce((sum: number, val) => 
+            sum + (Number(val) || 0), 0);
+          const pengeluaranTotal = Object.values(defaultPengeluaran).reduce((sum: number, val) => 
+            sum + (Number(val) || 0), 0);
+          saldo = penerimaanTotal - pengeluaranTotal;
+        }
+        
+        return {
+          ...tx,
+          id: tx.id || `tx-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          tanggal: tx.tanggal || new Date().toISOString().split('T')[0],
+          uraian: tx.uraian || '',
+          penerimaan: defaultPenerimaan,
+          pengeluaran: defaultPengeluaran,
+          saldo: saldo
+        };
+      }),
       code: account.code,
       type: account.type,
       currency: account.currency || 'IDR',
@@ -137,6 +108,12 @@ const UploadPage = () => {
     }));
     
     dispatch({ type: 'SET_ACCOUNTS', payload: mappedAccounts });
+    
+    // Set the first account as current if none is selected
+    if (mappedAccounts.length > 0 && !state.currentAccount) {
+      dispatch({ type: 'SET_CURRENT_ACCOUNT', payload: mappedAccounts[0].id });
+    }
+    
     return true;
   };
 
@@ -173,25 +150,104 @@ const UploadPage = () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       setValidationError(null);
       
-      // In a real app, you would upload the file to your server here
-      // For now, we'll simulate a successful upload with sample data
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Dynamically import xlsx to handle ESM/CJS compatibility
+      const XLSX = await import('xlsx');
       
-      // Sample response - replace with actual API call
-      const responseData = {
-        accounts: [
-          {
-            id: 'acc-1',
-            name: 'Kas',
-            balance: 0,
-            transactions: []
-          }
-        ]
-      };
+      // Read the file as ArrayBuffer
+      const arrayBuffer = await fileToUpload.arrayBuffer();
       
-      return responseData.accounts;
+      // Parse the Excel file
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      
+      if (workbook.SheetNames.length === 0) {
+        throw new Error('File does not contain any sheets');
+      }
+      
+      // Get the first sheet name as the account name (or use a default if needed)
+      const accountName = workbook.SheetNames[0] || 'Akun Baru';
+      
+      // Convert the first sheet to JSON with proper typing
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData: unknown[][] = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1, defval: '' });
+      
+      // Process the data to extract transactions
+      const transactions: TransactionItem[] = [];
+      
+      // Skip header row if exists
+      let startRow = 0;
+      if (jsonData.length > 0 && Array.isArray(jsonData[0]) && jsonData[0].length > 0) {
+        const firstCell = String(jsonData[0][0] || '').toLowerCase();
+        if (['tanggal', 'uraian', 'penerimaan', 'pengeluaran', 'saldo'].some(h => 
+          firstCell.includes(h.toLowerCase())
+        )) {
+          startRow = 1;
+        }
+      }
+      
+      // Process each row of data
+      for (let i = startRow; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (!Array.isArray(row) || row.length === 0) continue;
+        
+        // Helper functions to safely access row data
+        const getStringValue = (index: number): string => {
+          if (index >= row.length) return '';
+          const value = row[index];
+          return value !== null && value !== undefined ? String(value) : '';
+        };
+        
+        const getNumberValue = (index: number): number => {
+          if (index >= row.length) return 0;
+          const value = row[index];
+          if (value === null || value === undefined) return 0;
+          const num = Number(value);
+          return isNaN(num) ? 0 : num;
+        };
+        
+        // Create transaction with safe defaults
+        const transaction: TransactionItem = {
+          id: `tx-${Date.now()}-${i}`,
+          tanggal: getStringValue(0) || new Date().toISOString().split('T')[0],
+          uraian: getStringValue(1),
+          penerimaan: {},
+          pengeluaran: {},
+          saldo: 0
+        };
+        
+        // Process amounts
+        const penerimaan = getNumberValue(2);
+        const pengeluaran = getNumberValue(3);
+        
+        if (penerimaan > 0) {
+          transaction.penerimaan = { 'Penerimaan': penerimaan };
+        }
+        
+        if (pengeluaran > 0) {
+          transaction.pengeluaran = { 'Pengeluaran': pengeluaran };
+        }
+        
+        // Set saldo from column or calculate it
+        const saldo = getNumberValue(4);
+        transaction.saldo = saldo || (penerimaan - pengeluaran);
+        
+        transactions.push(transaction);
+      }
+      
+      // Return the account data with the dynamic account name
+      return [{
+        id: `acc-${Date.now()}`,
+        name: accountName,
+        balance: transactions.length > 0 ? transactions[transactions.length - 1].saldo : 0,
+        transactions: transactions,
+        currency: 'IDR',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }];
+      
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan saat mengunggah file';
+      console.error('Error processing file:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan saat memproses file';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       toast.error(errorMessage);
       return [];
@@ -200,38 +256,49 @@ const UploadPage = () => {
     }
   };
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-    
-    const error = validateFile(selectedFile);
+  const onFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Clear previous file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    // Validate file
+    const error = validateFile(file);
     if (error) {
       setValidationError(error);
+      toast.error(error.message);
       return;
     }
-    
-    setValidationError(null);
-    setIsSubmitting(true);
-    
-    handleFileUpload(selectedFile)
-      .then(accounts => {
-        if (processAndUpdateAccounts(accounts)) {
-          toast.success('File berhasil diunggah');
-          navigate('/editor');
-        } else {
-          toast.error('Tidak ada data transaksi yang valid');
-        }
-      })
-      .catch(err => {
-        console.error('Upload error:', err);
-        toast.error('Gagal memproses file. Silakan coba lagi.');
-      })
-      .finally(() => {
-        setIsSubmitting(false);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-      });
+
+    setIsProcessing(true);
+    try {
+      // Process the file
+      const accounts = await handleFileUpload(file);
+      
+      if (accounts.length === 0) {
+        throw new Error('Tidak ada data yang dapat diproses dari file ini');
+      }
+
+      // Update the app state with the processed accounts
+      const success = processAndUpdateAccounts(accounts);
+      
+      if (success) {
+        toast.success('File berhasil diunggah dan diproses');
+        // Navigate to the editor page
+        navigate('/editor');
+      } else {
+        throw new Error('Gagal memproses data akun');
+      }
+    } catch (error) {
+      console.error('Error processing file:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan saat memproses file';
+      toast.error(errorMessage);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
@@ -250,29 +317,44 @@ const UploadPage = () => {
     e.preventDefault();
     setIsDragging(false);
     
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (!droppedFile) return;
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
     
-    const error = validateFile(droppedFile);
+    const file = files[0];
+    
+    // Validate file
+    const error = validateFile(file);
     if (error) {
       setValidationError(error);
+      toast.error(error.message);
       return;
     }
     
-    setIsSubmitting(true);
+    setIsProcessing(true);
     try {
-      const accounts = await handleFileUpload(droppedFile);
-      if (processAndUpdateAccounts(accounts)) {
-        toast.success('File berhasil diunggah');
+      // Process the file
+      const accounts = await handleFileUpload(file);
+      
+      if (accounts.length === 0) {
+        throw new Error('Tidak ada data yang dapat diproses dari file ini');
+      }
+      
+      // Update the app state with the processed accounts
+      const success = processAndUpdateAccounts(accounts);
+      
+      if (success) {
+        toast.success('File berhasil diunggah dan diproses');
+        // Navigate to the editor page
         navigate('/editor');
       } else {
-        toast.error('Tidak ada data transaksi yang valid');
+        throw new Error('Gagal memproses data akun');
       }
     } catch (error) {
       console.error('Error processing file:', error);
-      toast.error('Gagal memproses file. Silakan coba lagi.');
+      const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan saat memproses file';
+      toast.error(errorMessage);
     } finally {
-      setIsSubmitting(false);
+      setIsProcessing(false);
     }
   };
 
@@ -306,9 +388,9 @@ const UploadPage = () => {
                   type="button"
                   className="font-medium text-blue-600 hover:text-blue-500 focus:outline-none focus:underline transition duration-150 ease-in-out"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={isSubmitting}
+                  disabled={isProcessing}
                 >
-                  Unggah file
+                  {isProcessing ? 'Memproses...' : 'Unggah file'}
                 </button>{' '}
                 atau tarik dan lepas
               </p>
@@ -322,8 +404,8 @@ const UploadPage = () => {
             type="file"
             className="hidden"
             accept=".xlsx, .xls"
-            onChange={handleFileChange}
-            disabled={isSubmitting}
+            onChange={onFileChange}
+            disabled={isProcessing}
           />
         </div>
 
@@ -338,16 +420,16 @@ const UploadPage = () => {
             type="button"
             onClick={handleDownloadTemplate}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isSubmitting || isDownloading}
+            disabled={isDownloading || isProcessing}
           >
             {isDownloading ? (
               <>
-                <ArrowPathIcon className="animate-spin -ml-1 mr-2 h-5 w-5" />
+                <ArrowPathIcon className="animate-spin -ml-1 mr-2 h-4 w-4" />
                 Mengunduh...
               </>
             ) : (
               <>
-                <DocumentArrowDownIcon className="-ml-1 mr-2 h-5 w-5" />
+                <DocumentArrowDownIcon className="-ml-1 mr-2 h-4 w-4" />
                 Unduh Template
               </>
             )}

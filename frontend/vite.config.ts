@@ -1,60 +1,78 @@
+/// <reference types="vite/client" />
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import tsconfigPaths from 'vite-tsconfig-paths';
 
-export default defineConfig(({ mode }) => ({
+// https://vitejs.dev/config/
+export default defineConfig({
   plugins: [
     react({
       jsxImportSource: 'react',
+      babel: {
+        plugins: [
+          ['@babel/plugin-transform-react-jsx', { runtime: 'automatic' }],
+        ],
+      },
     }),
+    tsconfigPaths(),
   ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Add polyfills for Node.js built-ins
+      'crypto': 'crypto-browserify',
+      'stream': 'stream-browserify',
+      'util': 'util',
+      'buffer': 'buffer',
+      'process': 'process/browser',
+      'path': 'path-browserify',
     },
-  },
-  css: {
-    devSourcemap: mode === 'development',
-    postcss: './postcss.config.js',
   },
   server: {
-    port: 3001,
-    host: '0.0.0.0',
-    strictPort: true,
-    open: !process.env.CI,
-    fs: {
-      strict: true,
-    },
+    port: 3000,
+    open: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        secure: false,
       },
     },
   },
   build: {
     outDir: 'dist',
-    sourcemap: mode === 'development',
-    emptyOutDir: true,
-    minify: 'esbuild',
-    chunkSizeWarningLimit: 1000,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-router-dom'],
-          vendor: ['@tanstack/react-query', 'date-fns', 'recharts'],
-        },
-      },
+    sourcemap: true,
+    commonjsOptions: {
+      include: [/node_modules/],
+      transformMixedEsModules: true,
     },
   },
   define: {
-    'process.env': {}
+    'process.env': {},
+    'process.browser': true,
+    global: 'globalThis',
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'xlsx',
+      'crypto-browserify',
+      'stream-browserify',
+      'util',
+      'buffer',
+      'process',
+    ],
     esbuildOptions: {
+      // Node.js global to browser globalThis
+      define: {
+        global: 'globalThis',
+      },
+      // Enable esbuild polyfill for Node.js globals
       target: 'es2020',
     },
   },
-}));
+});

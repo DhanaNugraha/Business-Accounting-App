@@ -5,13 +5,25 @@
 /// <reference types="react" />
 /// <reference types="react-dom" />
 
-// Add type definitions for CSS modules
+interface ImportMetaEnv {
+  readonly VITE_API_BASE_URL: string;
+  // Add other environment variables here as needed
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 declare module '*.module.css' {
-  const classes: { [key: string]: string };
+  const classes: { readonly [key: string]: string };
   export default classes;
 }
 
-// Add type definitions for image imports
+declare module '*.module.scss' {
+  const classes: { readonly [key: string]: string };
+  export default classes;
+}
+
 declare module '*.png';
 declare module '*.jpg';
 declare module '*.jpeg';
@@ -22,3 +34,5 @@ declare module '*.svg' {
   const src: string;
   export default src;
 }
+
+/// <reference types="vite/client" />

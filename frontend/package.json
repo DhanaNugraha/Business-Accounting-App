@@ -6,8 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "prepare": "npx husky install",
+    "setup:env": "node -e \"const fs = require('fs'); if (!fs.existsSync('.env')) { fs.copyFileSync('.env.example', '.env'); console.log('Created .env file'); } else { console.log('.env file already exists'); }\"",
+    "postinstall": "npm run setup:env"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -22,23 +25,32 @@
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^6.22.3",
     "recharts": "^2.12.7",
-    "workbox-window": "^7.3.0"
+    "workbox-window": "^7.3.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-jsx": "^7.27.1",
-    "@types/node": "^20.19.13",
-    "@types/react": "^18.2.48",
-    "@types/react-dom": "^18.2.18",
-    "@typescript-eslint/eslint-plugin": "^7.0.1",
-    "@typescript-eslint/parser": "^7.0.1",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@types/node": "^20.19.14",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@typescript-eslint/eslint-plugin": "^5.0.0",
+    "@typescript-eslint/parser": "^5.0.0",
+    "@vitejs/plugin-react": "^5.0.2",
     "autoprefixer": "^10.4.17",
-    "eslint": "^8.56.0",
+    "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.1",
+    "eslint": "^8.0.0",
     "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.5",
+    "eslint-plugin-react-refresh": "^0.3.0",
+    "husky": "^9.1.7",
+    "path-browserify": "^1.0.1",
     "postcss": "^8.4.33",
+    "process": "^0.11.10",
+    "stream-browserify": "^3.0.0",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.3.3",
-    "vite": "^5.0.12"
+    "typescript": "^5.0.0",
+    "util": "^0.12.5",
+    "vite": "^7.1.5",
+    "vite-tsconfig-paths": "^5.1.4"
   }
 }
