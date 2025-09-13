@@ -141,46 +141,8 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     );
   };
 
-  const testClick = () => {
-    console.log('Test button clicked!');
-  };
-
-  const logCurrentTransaction = () => {
-    if (editingId) {
-      const tx = editedTransactions.find(t => t.id === editingId);
-      console.log('Current transaction being edited:', tx);
-      console.log('All transactions:', editedTransactions);
-    } else {
-      console.log('No transaction is currently being edited');
-    }
-  };
-
   return (
     <div className="bg-white shadow rounded-lg p-6">
-      {/* Debug controls */}
-      <div className="mb-4 flex space-x-2">
-        <button 
-          onClick={testClick}
-          className="px-4 py-2 bg-blue-500 text-white rounded text-sm"
-        >
-          Test Button
-        </button>
-        <button 
-          onClick={logCurrentTransaction}
-          className="px-4 py-2 bg-purple-500 text-white rounded text-sm"
-        >
-          Log Current Transaction
-        </button>
-        <button 
-          onClick={() => {
-            console.log('Forcing save with current transactions:', editedTransactions);
-            onSave(editedTransactions);
-          }}
-          className="px-4 py-2 bg-green-500 text-white rounded text-sm"
-        >
-          Force Save
-        </button>
-      </div>
       
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">{accountName} Transactions</h2>
