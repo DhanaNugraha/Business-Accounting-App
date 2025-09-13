@@ -11,10 +11,6 @@ interface TransactionEditorProps {
 export const TransactionEditor = ({ transactions, onSave, accountName }: TransactionEditorProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedTransactions, setEditedTransactions] = useState<TransactionItem[]>(transactions);
-  const [newTransaction, setNewTransaction] = useState<Partial<TransactionItem>>({
-    penerimaan: {},
-    pengeluaran: {}
-  });
   const [isAdding, setIsAdding] = useState(false);
   const [newPenerimaan, setNewPenerimaan] = useState({ category: '', amount: '' });
   const [newPengeluaran, setNewPengeluaran] = useState({ category: '', amount: '' });
@@ -33,11 +29,9 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
 
   const handleEdit = (id: string) => {
     console.log('Edit button clicked for transaction ID:', id);
-    // Find the transaction being edited
     const transactionToEdit = editedTransactions.find(tx => tx.id === id);
     console.log('Transaction to edit:', transactionToEdit);
     if (transactionToEdit) {
-      // Reset any previous edit state
       setNewPenerimaan({ category: '', amount: '' });
       setNewPengeluaran({ category: '', amount: '' });
       setEditingId(id);
@@ -49,12 +43,10 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
 
   const handleSave = () => {
     console.log('Save button clicked');
-    
-    // Always save all transactions, not just the one being edited
     if (editedTransactions.length > 0) {
       console.log('Saving all transactions:', editedTransactions);
       onSave(editedTransactions);
-      setEditingId(null); // Reset editing state
+      setEditingId(null);
     } else {
       console.log('No transactions to save');
     }
@@ -63,53 +55,6 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
   const handleDelete = (id: string) => {
     const updated = editedTransactions.filter(t => t.id !== id);
     setEditedTransactions(updated);
-    onSave(updated);
-  };
-
-  const handleAdd = (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
-    console.log('handleAdd called');
-    console.log('New transaction data:', newTransaction);
-    
-    if (!newTransaction.tanggal || !newTransaction.uraian) {
-      console.error('Missing required fields for new transaction');
-      return;
-    }
-    
-    const penerimaanTotal = Object.values(newTransaction.penerimaan || {}).reduce(
-      (sum, val) => sum + (Number(val) || 0), 0
-    );
-    const pengeluaranTotal = Object.values(newTransaction.pengeluaran || {}).reduce(
-      (sum, val) => sum + (Number(val) || 0), 0
-    );
-    
-    const newTx: TransactionItem = {
-      id: `tx-${Date.now()}`,
-      tanggal: newTransaction.tanggal,
-      uraian: newTransaction.uraian,
-      penerimaan: { ...newTransaction.penerimaan },
-      pengeluaran: { ...newTransaction.pengeluaran },
-      saldo: penerimaanTotal - pengeluaranTotal
-    };
-
-    console.log('Adding new transaction:', newTx);
-    
-    const updated = [...editedTransactions, newTx];
-    setEditedTransactions(updated);
-    setNewTransaction({ penerimaan: {}, pengeluaran: {} });
-    
-    // Set the new transaction as being edited
-    setEditingId(newTx.id);
-    console.log('New transaction added and set for editing. ID:', newTx.id);
-    
-    // Reset the form
-    setIsAdding(false);
-    
-    // Call onSave with the updated transactions
     onSave(updated);
   };
 
@@ -131,25 +76,19 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
       saldo: 0
     };
 
-    // Add the amount to the correct type (penerimaan or pengeluaran)
     if (simpleForm.tipe === 'penerimaan') {
       newTx.penerimaan = { [simpleForm.kategori || 'Lainnya']: Number(simpleForm.jumlah) };
     } else {
       newTx.pengeluaran = { [simpleForm.kategori || 'Lainnya']: Number(simpleForm.jumlah) };
     }
 
-    // Calculate saldo
     const penerimaanTotal = Object.values(newTx.penerimaan).reduce((sum, val) => sum + (Number(val) || 0), 0);
     const pengeluaranTotal = Object.values(newTx.pengeluaran).reduce((sum, val) => sum + (Number(val) || 0), 0);
     newTx.saldo = penerimaanTotal - pengeluaranTotal;
 
-    console.log('Adding new transaction:', newTx);
-    
-    // Only update local state, don't call onSave
     const updated = [...editedTransactions, newTx];
     setEditedTransactions(updated);
     
-    // Reset form
     setSimpleForm({
       tanggal: new Date().toISOString().split('T')[0],
       uraian: '',
@@ -158,10 +97,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
       kategori: ''
     });
     
-    // Close the form
     setIsAdding(false);
-    
-    console.log('New transaction added to local state. Use Save Changes to persist.');
   };
 
   const handleInputChange = (id: string, field: keyof Omit<TransactionItem, 'penerimaan' | 'pengeluaran'>, value: string) => {
@@ -251,7 +187,6 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
               e.preventDefault();
               e.stopPropagation();
               console.log('Save button clicked directly');
-              console.log('Current editingId:', editingId);
               handleSave();
             }}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -263,7 +198,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
             onClick={() => {
               console.log('Add Transaction button clicked');
               setIsAdding(true);
-              setEditingId(null); // Make sure we're not in edit mode
+              setEditingId(null);
               console.log('New transaction form initialized');
             }}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -345,18 +280,21 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                           required
                         />
                       </div>
-                      <div className="md:col-span-1 flex space-x-2">
+                      <div className="md:col-span-1 flex items-center justify-center space-x-2">
                         <button
                           type="submit"
-                          className="text-green-600 hover:text-green-800 p-1 hover:bg-green-100 rounded-full"
+                          className="text-green-600 hover:text-green-800 p-1.5 hover:bg-green-100 rounded-full transition-colors"
                           title="Tambah Transaksi"
                         >
                           <PlusIcon className="h-5 w-5" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => setIsAdding(false)}
-                          className="text-red-600 hover:text-red-800 p-1 hover:bg-red-100 rounded-full"
+                          onClick={() => {
+                            setIsAdding(false);
+                            setEditingId(null);
+                          }}
+                          className="text-red-600 hover:text-red-800 p-1.5 hover:bg-red-100 rounded-full transition-colors"
                           title="Batal"
                         >
                           <XMarkIcon className="h-5 w-5" />
@@ -370,7 +308,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
             
             {editedTransactions.map((tx, index) => (
               <tr key={tx.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 w-32">
                   {editingId === tx.id ? (
                     <input
                       type="date"
@@ -382,7 +320,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                     new Date(tx.tanggal).toLocaleDateString('id-ID')
                   )}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 text-sm text-gray-900 min-w-[200px]">
                   {editingId === tx.id ? (
                     <input
                       type="text"
@@ -391,15 +329,15 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                       onChange={(e) => handleInputChange(tx.id, 'uraian', e.target.value)}
                     />
                   ) : (
-                    tx.uraian
+                    <div className="break-words">{tx.uraian}</div>
                   )}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 w-48">
                   <div className="space-y-2">
                     {editingId === tx.id ? (
                       <>
                         {Object.entries(tx.penerimaan || {}).map(([category, amount]) => (
-                          <div key={category} className="flex items-center space-x-2">
+                          <div key={category} className="flex items-center justify-end space-x-2">
                             <span className="text-sm">{category}:</span>
                             <input
                               type="number"
@@ -416,7 +354,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                             </button>
                           </div>
                         ))}
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-end space-x-2">
                           <input
                             type="text"
                             className="block w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
@@ -445,7 +383,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                         </div>
                       </>
                     ) : (
-                      <div className="space-y-1">
+                      <div className="space-y-1 text-right">
                         {Object.entries(tx.penerimaan || {}).map(([category, amount]) => (
                           <div key={category} className="flex justify-between">
                             <span className="text-sm">{category}:</span>
@@ -456,12 +394,12 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 w-48">
                   <div className="space-y-2">
                     {editingId === tx.id ? (
                       <>
                         {Object.entries(tx.pengeluaran || {}).map(([category, amount]) => (
-                          <div key={category} className="flex items-center space-x-2">
+                          <div key={category} className="flex items-center justify-end space-x-2">
                             <span className="text-sm">{category}:</span>
                             <input
                               type="number"
@@ -478,7 +416,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                             </button>
                           </div>
                         ))}
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-end space-x-2">
                           <input
                             type="text"
                             className="block w-24 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
@@ -507,7 +445,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                         </div>
                       </>
                     ) : (
-                      <div className="space-y-1">
+                      <div className="space-y-1 text-right">
                         {Object.entries(tx.pengeluaran || {}).map(([category, amount]) => (
                           <div key={category} className="flex justify-between">
                             <span className="text-sm">{category}:</span>
@@ -518,91 +456,53 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
-                  {(
-                    (Object.values(tx.penerimaan || {}).reduce((sum, val) => sum + (Number(val) || 0), 0) -
-                     Object.values(tx.pengeluaran || {}).reduce((sum, val) => sum + (Number(val) || 0), 0))
-                    .toLocaleString('id-ID')
-                  )}
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900 w-32">
+                  {Number(tx.saldo || 0).toLocaleString('id-ID')}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex justify-end space-x-2">
+                <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium w-24">
+                  <div className="flex justify-end">
                     {editingId === tx.id ? (
-                      <div className="flex items-center space-x-2" style={{ position: 'relative', zIndex: 10 }}>
+                      <div className="flex space-x-1">
                         <button
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            console.log('Save button clicked directly');
-                            console.log('Current editingId:', editingId);
                             handleSave();
                           }}
-                          className="text-green-600 hover:text-green-900 p-1 rounded-full hover:bg-green-100"
+                          className="text-green-600 hover:text-green-900 p-0.5 rounded-full hover:bg-green-100"
                           title="Simpan"
-                          style={{
-                            position: 'relative',
-                            zIndex: 20,
-                            pointerEvents: 'auto'
-                          }}
                         >
-                          <CheckCircleIcon className="h-5 w-5" />
+                          <CheckCircleIcon className="h-4 w-4" />
                         </button>
-                        
                         <button
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            console.log('Cancel button clicked');
                             setEditingId(null);
                           }}
-                          className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-100"
+                          className="text-red-600 hover:text-red-900 p-0.5 rounded-full hover:bg-red-100"
                           title="Batal"
-                          style={{
-                            position: 'relative',
-                            zIndex: 20,
-                            pointerEvents: 'auto'
-                          }}
                         >
-                          <XMarkIcon className="h-5 w-5" />
-                        </button>
-                        
-                        {/* Test button - can be removed after debugging */}
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            console.log('Test button in table clicked');
-                            console.log('Editing ID:', editingId);
-                            alert('Test button clicked! Editing ID: ' + editingId);
-                          }}
-                          className="text-white bg-blue-500 hover:bg-blue-600 px-2 py-1 rounded text-xs"
-                          title="Test"
-                          style={{
-                            position: 'relative',
-                            zIndex: 20,
-                            pointerEvents: 'auto'
-                          }}
-                        >
-                          TEST
+                          <XMarkIcon className="h-4 w-4" />
                         </button>
                       </div>
                     ) : (
-                      <>
+                      <div className="flex space-x-1">
                         <button
                           onClick={() => handleEdit(tx.id)}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-blue-600 hover:text-blue-900 p-0.5 rounded-full hover:bg-blue-100"
                           title="Edit"
                         >
-                          <PencilIcon className="h-5 w-5" />
+                          <PencilIcon className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(tx.id)}
-                          className="text-red-600 hover:text-red-900"
+                          className="text-red-600 hover:text-red-900 p-0.5 rounded-full hover:bg-red-100"
                           title="Hapus"
                         >
-                          <TrashIcon className="h-5 w-5" />
+                          <TrashIcon className="h-4 w-4" />
                         </button>
-                      </>
+                      </div>
                     )}
                   </div>
                 </td>
@@ -614,3 +514,5 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     </div>
   );
 };
+
+export default TransactionEditor;
