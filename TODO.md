@@ -48,16 +48,50 @@
 - [x] Cleaned up unused code and imports
 - [x] Standardized Indonesian field names across components
 - [x] Added proper loading states for file uploads
-- [x] Updated EditorPage to handle transaction saving
-- [x] Fixed file handling in backend save endpoint
-- [ ] Resolve CORS issues between frontend and backend
+- [x] Implemented local transaction saving functionality
+  - [x] Save transactions to Excel file on device
+  - [x] Handle file download with proper naming
+  - [x] Add error handling for save operations
+- [x] Improved transaction editing workflow
+  - [x] Simplified save functionality to handle all transactions
+  - [x] Fixed issues with edit mode and save button behavior
+  - [x] Added proper state management for editing
 
-## Current Task
-- [ ] Fix Excel column processing
-  - [ ] Handle multiple Penerimaan_* and Pengeluaran_* columns
-  - [ ] Update transaction processing to handle dynamic categories
-  - [ ] Ensure proper balance calculation with multiple categories
-  - [ ] Update type definitions for dynamic columns
+## In Progress
+- [ ] Add data validation for transaction entries
+  - [ ] Validate date formats
+  - [ ] Ensure numeric fields contain valid numbers
+  - [ ] Add required field validation
+
+## Pending Features
+- [ ] Add transaction search and filtering
+  - [ ] Search by description
+  - [ ] Filter by date range
+  - [ ] Filter by amount range
+  - [ ] Filter by category
+
+- [ ] Reporting
+  - [ ] Generate monthly reports
+  - [ ] Export reports to PDF/Excel
+  - [ ] Visualize spending/income trends
+
+- [ ] UI/UX Improvements
+  - [ ] Add loading skeletons for better perceived performance
+  - [ ] Improve form validation feedback
+  - [ ] Add success/error toast notifications
+  - [ ] Enhance mobile responsiveness
+  - [ ] Add keyboard shortcuts for common actions
+  - [ ] Implement dark mode
+
+## Backlog
+- [ ] User authentication and authorization
+- [ ] Multi-user support with data separation
+- [ ] Cloud backup and sync
+- [ ] Recurring transactions
+- [ ] Receipt image upload and attachment
+- [ ] Multi-currency support
+- [ ] Tax calculation and reporting
+- [ ] Budget tracking and alerts
 
 ## Testing & Validation (Next Up)
 - [ ] Unit tests for backend API
@@ -90,53 +124,6 @@
   - [ ] Upload validation
   - [ ] Template download
   - [ ] Save/load from localStorage
-
-## UI/UX Improvements
-- [x] Add loading states
-- [x] Basic error handling
-- [ ] Form validation for transactions
-  - [ ] Required fields
-  - [ ] Date format validation
-  - [ ] Number format validation
-  - [ ] Balance validation
-- [ ] Responsive design
-  - [x] Mobile menu implementation
-  - [ ] Optimize for small screens
-  - [ ] Touch-friendly controls
-- [ ] Transaction editor features
-  - [ ] Keyboard navigation
-  - [ ] Bulk actions
-  - [ ] Search/filter transactions
-- [ ] Add help text and tooltips
-- [ ] Implement dark mode
-
-## Current Issues
-- [x] Resolve source map warnings in development
-- [x] Fix React Router future flag warnings
-- [x] Implement template download functionality
-  - [x] Connect download button to backend /template endpoint
-  - [x] Ensure proper file download with correct MIME type
-  - [x] Add error handling for failed downloads
-- [x] Fix Reports page access
-  - [x] Implement basic Reports page component
-  - [x] Add route in App.tsx
-  - [x] Add navigation link in the sidebar/menu
-- [ ] UI/UX Improvements
-  - [ ] Add loading skeletons for better perceived performance
-  - [ ] Improve form validation feedback
-  - [ ] Add success/error toast notifications
-  - [ ] Enhance mobile responsiveness
-  - [ ] Add hover/focus states for interactive elements
-- [x] TypeScript type improvements
-  - [x] Define interfaces for transaction data
-  - [x] Type API responses
-  - [x] Add type guards for runtime validation
-- [ ] State management
-  - [ ] Optimize re-renders
-  - [ ] Handle large datasets efficiently
-- [ ] Performance
-  - [ ] Virtualize transaction list for large datasets
-  - [ ] Optimize Excel parsing/generation
 
 ## Frontend Pages
 - [x] Upload Page

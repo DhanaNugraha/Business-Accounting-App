@@ -2,7 +2,6 @@ import { useAppContext } from '@/contexts/AppContext';
 import type { TransactionItem } from '@/types';
 import { TransactionEditor } from '@/components/TransactionEditor';
 import { toast } from 'react-hot-toast';
-import { saveTransactions } from '@/services/api';
 
 export const EditorPage = () => {
   const { state, dispatch } = useAppContext();
@@ -20,67 +19,80 @@ export const EditorPage = () => {
   // ... rest of the component code ...
 
   const handleSaveTransactions = async (transactions: TransactionItem[]) => {
-    if (!selectedAccount) return;
+    console.group('Saving Transactions to Excel');
+    
+    if (!selectedAccount) {
+      const error = 'No account selected';
+      console.error(error);
+      toast.error(error);
+      console.groupEnd();
+      return;
+    }
     
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      const normalizedTransactions = transactions.map(tx => {
-        // Ensure we have proper default values for the new structure
-        const defaultPenerimaan = typeof tx.penerimaan === 'string' ? {} : (tx.penerimaan || {});
-        const defaultPengeluaran = typeof tx.pengeluaran === 'string' ? {} : (tx.pengeluaran || {});
-        
-        // Calculate saldo if not provided
-        let saldo = tx.saldo;
-        if (typeof saldo !== 'number') {
-          const penerimaanTotal = Object.values(defaultPenerimaan).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
-          const pengeluaranTotal = Object.values(defaultPengeluaran).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
-          saldo = penerimaanTotal - pengeluaranTotal;
-        }
-        
-        return {
-          ...tx,
-          id: tx.id || `tx-${Date.now()}`,
-          tanggal: tx.tanggal || new Date().toISOString().split('T')[0],
-          uraian: tx.uraian || '',
-          penerimaan: defaultPenerimaan,
-          pengeluaran: defaultPengeluaran,
-          saldo: saldo
-        };
-      });
+      console.log('Preparing data for Excel export...');
       
-      // First update the local state
+      // Update local state first
       dispatch({
         type: 'UPDATE_ACCOUNT',
         payload: {
           accountId: selectedAccount.id,
-          transactions: normalizedTransactions
+          transactions: [...transactions]
         }
       });
       
-      // Format data for the backend
+      // Prepare data for Excel export
       const saveData = {
         accounts: [{
           id: selectedAccount.id,
           name: selectedAccount.name,
-          transactions: normalizedTransactions
+          transactions: transactions
         }]
       };
-
-      // Use the API service function to handle the file download
-      await saveTransactions(saveData);
       
-      toast.success('Transactions saved successfully');
-    } catch (error) {
-      console.error('Error saving transactions:', error);
-      toast.error('Failed to save transactions');
-      // Revert to the previous transactions if save fails
-      dispatch({
-        type: 'SET_ACCOUNTS',
-        payload: [...state.accounts]
+      // Call the API to generate and download the Excel file
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(saveData),
       });
+      
+      if (!response.ok) {
+        throw new Error(`Server responded with status ${response.status}`);
+      }
+      
+      // Get the filename from the content-disposition header or use a default one
+      const contentDisposition = response.headers.get('content-disposition');
+      const filename = contentDisposition 
+        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+        : `transactions_${new Date().toISOString().split('T')[0]}.xlsx`;
+      
+      // Convert the response to a blob and create a download link
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      console.log('Excel file downloaded successfully');
+      toast.success('Transactions exported to Excel');
+      
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.error(`Failed to export: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
+      console.groupEnd();
     }
   };
 

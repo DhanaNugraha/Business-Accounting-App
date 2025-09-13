@@ -163,87 +163,127 @@ const UploadPage = () => {
         throw new Error('File does not contain any sheets');
       }
       
-      // Get the first sheet name as the account name (or use a default if needed)
-      const accountName = workbook.SheetNames[0] || 'Akun Baru';
+      const accounts: AccountData[] = [];
       
-      // Convert the first sheet to JSON with proper typing
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData: unknown[][] = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1, defval: '' });
-      
-      // Process the data to extract transactions
-      const transactions: TransactionItem[] = [];
-      
-      // Skip header row if exists
-      let startRow = 0;
-      if (jsonData.length > 0 && Array.isArray(jsonData[0]) && jsonData[0].length > 0) {
-        const firstCell = String(jsonData[0][0] || '').toLowerCase();
-        if (['tanggal', 'uraian', 'penerimaan', 'pengeluaran', 'saldo'].some(h => 
-          firstCell.includes(h.toLowerCase())
-        )) {
-          startRow = 1;
+      // Process each sheet as a separate account
+      for (const sheetName of workbook.SheetNames) {
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData: unknown[][] = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1, defval: '' });
+        
+        if (jsonData.length === 0) continue;
+        
+        // Process headers to identify column indices
+        const headers = (jsonData[0] as string[]).map(h => String(h || '').trim());
+        
+        // Find column indices
+        const dateCol = headers.findIndex(h => h.toLowerCase() === 'tanggal');
+        const descCol = headers.findIndex(h => h.toLowerCase() === 'uraian');
+        const balanceCol = headers.findIndex(h => h.toLowerCase() === 'saldo');
+        
+        // Find all Penerimaan_* and Pengeluaran_* columns
+        const penerimaanCols = headers
+          .map((h, i) => (h.toLowerCase().startsWith('penerimaan_') ? i : -1))
+          .filter(i => i !== -1);
+          
+        const pengeluaranCols = headers
+          .map((h, i) => (h.toLowerCase().startsWith('pengeluaran_') ? i : -1))
+          .filter(i => i !== -1);
+        
+        // Skip if required columns are missing
+        if (dateCol === -1 || descCol === -1 || balanceCol === -1) {
+          console.warn(`Skipping sheet '${sheetName}': Missing required columns`);
+          continue;
+        }
+        
+        const transactions: TransactionItem[] = [];
+        let runningBalance = 0;
+        
+        // Process each row of data (skip header row)
+        for (let i = 1; i < jsonData.length; i++) {
+          const row = jsonData[i];
+          if (!Array.isArray(row) || row.length === 0) continue;
+          
+          // Helper function to safely access row data
+          const getStringValue = (index: number): string => {
+            if (index < 0 || index >= row.length) return '';
+            const value = row[index];
+            return value !== null && value !== undefined ? String(value).trim() : '';
+          };
+          
+          const getNumberValue = (index: number): number => {
+            if (index < 0 || index >= row.length) return 0;
+            const value = row[index];
+            if (value === null || value === undefined || value === '') return 0;
+            const num = Number(value);
+            return isNaN(num) ? 0 : num;
+          };
+          
+          // Process Penerimaan columns
+          const penerimaan: Record<string, number> = {};
+          for (const col of penerimaanCols) {
+            const value = getNumberValue(col);
+            if (value > 0) {
+              const category = headers[col].replace(/^penerimaan_/i, '');
+              penerimaan[category] = value;
+            }
+          }
+          
+          // Process Pengeluaran columns
+          const pengeluaran: Record<string, number> = {};
+          for (const col of pengeluaranCols) {
+            const value = getNumberValue(col);
+            if (value > 0) {
+              const category = headers[col].replace(/^pengeluaran_/i, '');
+              pengeluaran[category] = value;
+            }
+          }
+          
+          // Calculate total income and expense
+          const totalPenerimaan = Object.values(penerimaan).reduce((sum, val) => sum + val, 0);
+          const totalPengeluaran = Object.values(pengeluaran).reduce((sum, val) => sum + val, 0);
+          
+          // Get or calculate balance
+          let saldo = getNumberValue(balanceCol);
+          if (saldo === 0) {
+            saldo = totalPenerimaan - totalPengeluaran;
+            runningBalance += saldo;
+          } else {
+            runningBalance = saldo;
+          }
+          
+          // Create transaction
+          const transaction: TransactionItem = {
+            id: `tx-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 4)}`,
+            tanggal: getStringValue(dateCol) || new Date().toISOString().split('T')[0],
+            uraian: getStringValue(descCol) || 'Transaksi Tanpa Keterangan',
+            penerimaan,
+            pengeluaran,
+            saldo: runningBalance
+          };
+          
+          transactions.push(transaction);
+        }
+        
+        // Add account if we have transactions
+        if (transactions.length > 0) {
+          accounts.push({
+            id: `acc-${Date.now()}-${sheetName.replace(/\s+/g, '-').toLowerCase()}`,
+            name: sheetName,
+            balance: runningBalance,
+            transactions,
+            currency: 'IDR',
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
         }
       }
       
-      // Process each row of data
-      for (let i = startRow; i < jsonData.length; i++) {
-        const row = jsonData[i];
-        if (!Array.isArray(row) || row.length === 0) continue;
-        
-        // Helper functions to safely access row data
-        const getStringValue = (index: number): string => {
-          if (index >= row.length) return '';
-          const value = row[index];
-          return value !== null && value !== undefined ? String(value) : '';
-        };
-        
-        const getNumberValue = (index: number): number => {
-          if (index >= row.length) return 0;
-          const value = row[index];
-          if (value === null || value === undefined) return 0;
-          const num = Number(value);
-          return isNaN(num) ? 0 : num;
-        };
-        
-        // Create transaction with safe defaults
-        const transaction: TransactionItem = {
-          id: `tx-${Date.now()}-${i}`,
-          tanggal: getStringValue(0) || new Date().toISOString().split('T')[0],
-          uraian: getStringValue(1),
-          penerimaan: {},
-          pengeluaran: {},
-          saldo: 0
-        };
-        
-        // Process amounts
-        const penerimaan = getNumberValue(2);
-        const pengeluaran = getNumberValue(3);
-        
-        if (penerimaan > 0) {
-          transaction.penerimaan = { 'Penerimaan': penerimaan };
-        }
-        
-        if (pengeluaran > 0) {
-          transaction.pengeluaran = { 'Pengeluaran': pengeluaran };
-        }
-        
-        // Set saldo from column or calculate it
-        const saldo = getNumberValue(4);
-        transaction.saldo = saldo || (penerimaan - pengeluaran);
-        
-        transactions.push(transaction);
+      if (accounts.length === 0) {
+        throw new Error('Tidak ada data transaksi yang valid dalam file');
       }
       
-      // Return the account data with the dynamic account name
-      return [{
-        id: `acc-${Date.now()}`,
-        name: accountName,
-        balance: transactions.length > 0 ? transactions[transactions.length - 1].saldo : 0,
-        transactions: transactions,
-        currency: 'IDR',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }];
+      return accounts;
       
     } catch (err) {
       console.error('Error processing file:', err);
