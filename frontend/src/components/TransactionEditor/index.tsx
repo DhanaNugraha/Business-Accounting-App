@@ -88,7 +88,10 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
 
     const updated = [...editedTransactions, newTx];
     setEditedTransactions(updated);
+    // Save the updated transactions to the parent component
+    onSave(updated);
     
+    // Reset the form
     setSimpleForm({
       tanggal: new Date().toISOString().split('T')[0],
       uraian: '',
@@ -197,18 +200,113 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
           <button
             onClick={() => {
               console.log('Add Transaction button clicked');
-              setIsAdding(true);
+              setIsAdding(!isAdding);
               setEditingId(null);
-              console.log('New transaction form initialized');
+              console.log('Toggling transaction form');
             }}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${isAdding ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-600 hover:bg-blue-700'} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
           >
             <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
-            Add Transaction
+            {isAdding ? 'Sembunyikan Form' : 'Tambah Transaksi'}
           </button>
         </div>
       </div>
       
+      {/* Transaction Form */}
+      {isAdding && (
+        <div className="bg-blue-50 p-4 sm:p-6 rounded-lg shadow-sm mb-6 border border-blue-100 overflow-hidden">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Tambah Transaksi Baru</h3>
+            <button
+              onClick={() => setIsAdding(false)}
+              className="text-gray-500 hover:text-gray-700"
+              title="Tutup form"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSimpleAdd}>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal</label>
+                  <input
+                    type="date"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
+                    value={simpleForm.tanggal}
+                    onChange={(e) => setSimpleForm({...simpleForm, tanggal: e.target.value})}
+                    required
+                  />
+                </div>
+                
+                <div className="lg:col-span-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Uraian</label>
+                  <input
+                    type="text"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
+                    value={simpleForm.uraian}
+                    onChange={(e) => setSimpleForm({...simpleForm, uraian: e.target.value})}
+                    placeholder="Deskripsi transaksi"
+                    required
+                  />
+                </div>
+                
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipe</label>
+                  <select
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
+                    value={simpleForm.tipe}
+                    onChange={(e) => setSimpleForm({...simpleForm, tipe: e.target.value as 'penerimaan' | 'pengeluaran'})}
+                  >
+                    <option value="penerimaan">Penerimaan</option>
+                    <option value="pengeluaran">Pengeluaran</option>
+                  </select>
+                </div>
+                
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+                  <input
+                    type="text"
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm p-2"
+                    value={simpleForm.kategori}
+                    onChange={(e) => setSimpleForm({...simpleForm, kategori: e.target.value})}
+                    placeholder="Kategori"
+                  />
+                </div>
+                
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Jumlah</label>
+                  <div className="flex rounded-md shadow-sm">
+                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                      Rp
+                    </span>
+                    <input
+                      type="number"
+                      className="block w-full min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 text-sm p-2"
+                      value={simpleForm.jumlah}
+                      onChange={(e) => setSimpleForm({...simpleForm, jumlah: e.target.value})}
+                      placeholder="0"
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="lg:col-span-1 flex items-end">
+                  <button
+                    type="submit"
+                    className="w-full h-10 inline-flex justify-center items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    <PlusIcon className="h-4 w-4 sm:mr-1.5" />
+                    <span className="text-xs sm:text-sm">Tambah</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -222,89 +320,6 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {isAdding && (
-              <tr className="bg-blue-50">
-                <td colSpan={6} className="px-6 py-4">
-                  <form onSubmit={handleSimpleAdd} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
-                      <div className="md:col-span-1">
-                        <label className="block text-sm font-medium text-gray-700">Tanggal</label>
-                        <input
-                          type="date"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                          value={simpleForm.tanggal}
-                          onChange={(e) => setSimpleForm({...simpleForm, tanggal: e.target.value})}
-                          required
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700">Uraian</label>
-                        <input
-                          type="text"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                          value={simpleForm.uraian}
-                          onChange={(e) => setSimpleForm({...simpleForm, uraian: e.target.value})}
-                          placeholder="Deskripsi transaksi"
-                          required
-                        />
-                      </div>
-                      <div className="md:col-span-1">
-                        <label className="block text-sm font-medium text-gray-700">Tipe</label>
-                        <select
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                          value={simpleForm.tipe}
-                          onChange={(e) => setSimpleForm({...simpleForm, tipe: e.target.value as 'penerimaan' | 'pengeluaran'})}
-                        >
-                          <option value="penerimaan">Penerimaan</option>
-                          <option value="pengeluaran">Pengeluaran</option>
-                        </select>
-                      </div>
-                      <div className="md:col-span-1">
-                        <label className="block text-sm font-medium text-gray-700">Kategori</label>
-                        <input
-                          type="text"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                          value={simpleForm.kategori}
-                          onChange={(e) => setSimpleForm({...simpleForm, kategori: e.target.value})}
-                          placeholder="Kategori"
-                        />
-                      </div>
-                      <div className="md:col-span-1">
-                        <label className="block text-sm font-medium text-gray-700">Jumlah</label>
-                        <input
-                          type="number"
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm text-right"
-                          value={simpleForm.jumlah}
-                          onChange={(e) => setSimpleForm({...simpleForm, jumlah: e.target.value})}
-                          placeholder="0"
-                          required
-                        />
-                      </div>
-                      <div className="md:col-span-1 flex items-center justify-center space-x-2">
-                        <button
-                          type="submit"
-                          className="text-green-600 hover:text-green-800 p-1.5 hover:bg-green-100 rounded-full transition-colors"
-                          title="Tambah Transaksi"
-                        >
-                          <PlusIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsAdding(false);
-                            setEditingId(null);
-                          }}
-                          className="text-red-600 hover:text-red-800 p-1.5 hover:bg-red-100 rounded-full transition-colors"
-                          title="Batal"
-                        >
-                          <XMarkIcon className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </div>
-                  </form>
-                </td>
-              </tr>
-            )}
             
             {editedTransactions.map((tx, index) => (
               <tr key={tx.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
