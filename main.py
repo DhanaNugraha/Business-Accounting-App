@@ -11,6 +11,8 @@ from datetime import datetime
 import tempfile
 import os
 import generate_template
+from openpyxl.styles import PatternFill, Font, Border, Side
+from openpyxl.utils import get_column_letter
 
 # Initialize FastAPI app
 app = FastAPI(title="Accounting Helper API")
@@ -311,7 +313,16 @@ def _process_transactions(
 
 
 def _create_excel_file(data: TemplateData, output_path: str) -> None:
-    """Create an Excel file from the template data with dynamic columns."""
+    """
+    Create an Excel file from the template data with dynamic columns.
+    
+    The Excel file will have consistent formatting with the template, including:
+    - Proper number formatting for currency values
+    - Auto-adjusted column widths
+    - Styled header row with filters
+    - Frozen header row
+    - Consistent column ordering
+    """
     try:
         print("\n=== Creating Excel File ===")
         print("Output path: " + output_path)
@@ -319,99 +330,150 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
 
         if not data.accounts:
             print("Warning: No accounts found in data")
-            with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-                pd.DataFrame([{"Message": "No data available"}]).to_excel(
-                    writer, index=False, sheet_name="Data"
-                )
+            # Create a new workbook and save it
+            from openpyxl import Workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Data"
+            ws.append(["Message"])
+            ws.append(["No data available"])
+            wb.save(output_path)
             return
 
-        with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-            for account in data.accounts:
-                try:
-                    print("\nProcessing account: " + account.name)
-                    print(
-                        "Number of transactions: "
-                        + str(len(account.transactions) if account.transactions else 0)
-                    )
+        # Create a new workbook
+        from openpyxl import Workbook
+        
+        wb = Workbook()
+        
+        # Remove the default sheet created by openpyxl
+        for sheet in wb.sheetnames:
+            wb.remove(wb[sheet])
 
-                    # Create a DataFrame with all transactions
-                    rows = []
-                    for tx in account.transactions or []:
-                        row = {
-                            "Tanggal": getattr(tx, "tanggal", ""),
-                            "Uraian": getattr(tx, "uraian", ""),
-                            "Saldo": getattr(tx, "saldo", 0.0),
-                        }
+        for account in data.accounts:
+            try:
+                print("\nProcessing account: " + account.name)
+                print(
+                    "Number of transactions: "
+                    + str(len(account.transactions) if account.transactions else 0)
+                )
 
-                        # Add penerimaan columns
-                        if hasattr(tx, "penerimaan") and tx.penerimaan:
-                            for key, value in (tx.penerimaan or {}).items():
-                                row[f"Penerimaan_{key}"] = value
+                # Create a DataFrame with all transactions
+                rows = []
+                for tx in account.transactions or []:
+                    row = {
+                        "Tanggal": getattr(tx, "tanggal", ""),
+                        "Uraian": getattr(tx, "uraian", ""),
+                        "Saldo": getattr(tx, "saldo", 0.0),
+                    }
 
-                        # Add pengeluaran columns
-                        if hasattr(tx, "pengeluaran") and tx.pengeluaran:
-                            for key, value in (tx.pengeluaran or {}).items():
-                                row[f"Pengeluaran_{key}"] = value
+                    # Add penerimaan columns
+                    if hasattr(tx, "penerimaan") and tx.penerimaan:
+                        for key, value in (tx.penerimaan or {}).items():
+                            row[f"Penerimaan_{key}"] = value
 
-                        rows.append(row)
+                    # Add pengeluaran columns
+                    if hasattr(tx, "pengeluaran") and tx.pengeluaran:
+                        for key, value in (tx.pengeluaran or {}).items():
+                            row[f"Pengeluaran_{key}"] = value
 
-                    if not rows:
-                        print(f"Warning: No transactions for account {account.name}")
-                        pd.DataFrame(
-                            [{"Message": f"No transactions for {account.name}"}]
-                        ).to_excel(
-                            writer,
-                            sheet_name=account.name[:31],  # Excel sheet name limit
-                            index=False,
-                        )
-                        continue
+                    rows.append(row)
 
-                    # Create DataFrame and write to Excel
-                    df = pd.DataFrame(rows)
-
-                    # Reorder columns: Tanggal, Uraian, Penerimaan_*, Pengeluaran_*, Saldo
-                    columns_order = ["Tanggal", "Uraian"]
-                    columns_order.extend(
-                        sorted(
-                            [col for col in df.columns if col.startswith("Penerimaan_")]
-                        )
-                    )
-                    columns_order.extend(
-                        sorted(
-                            [
-                                col
-                                for col in df.columns
-                                if col.startswith("Pengeluaran_")
-                            ]
-                        )
-                    )
-                    if "Saldo" in df.columns:
-                        columns_order.append("Saldo")
-
-                    # Keep only columns that exist in the DataFrame
-                    columns_order = [col for col in columns_order if col in df.columns]
-                    df = df[columns_order]
-
-                    # Write to Excel
-                    df.to_excel(
-                        writer,
-                        sheet_name=account.name[:31],  # Excel sheet name limit
-                        index=False,
-                    )
-
-                except Exception as e:
-                    print(
-                        f"Error processing account {getattr(account, 'name', 'unknown')}: {str(e)}"
-                    )
-                    import traceback
-
-                    traceback.print_exc()
+                if not rows:
+                    print(f"Warning: No transactions for account {account.name}")
+                    ws = wb.create_sheet(title=account.name[:31])
+                    ws.append(["Message"])
+                    ws.append([f"No transactions for {account.name}"])
                     continue
+
+                # Create DataFrame
+                df = pd.DataFrame(rows)
+
+                # Reorder columns: Tanggal, Uraian, Penerimaan_*, Pengeluaran_*, Saldo
+                columns_order = ["Tanggal", "Uraian"]
+                columns_order.extend(
+                    sorted([col for col in df.columns if col.startswith("Penerimaan_")])
+                )
+                columns_order.extend(
+                    sorted([col for col in df.columns if col.startswith("Pengeluaran_")])
+                )
+                if "Saldo" in df.columns:
+                    columns_order.append("Saldo")
+
+                # Keep only columns that exist in the DataFrame
+                columns_order = [col for col in columns_order if col in df.columns]
+                df = df[columns_order]
+
+                # Create a new worksheet for this account
+                sheet_name = account.name[:31]  # Excel sheet name limit
+                ws = wb.create_sheet(title=sheet_name)
+                
+                # Write the header row
+                ws.append(columns_order)
+                
+                # Write the data rows
+                for _, row in df.iterrows():
+                    ws.append(row.tolist())
+                
+                # Apply formatting
+                header_fill = PatternFill(start_color="D9EAD3", end_color="D9EAD3", fill_type="solid")
+                thin_border = Border(
+                    left=Side(style='thin'),
+                    right=Side(style='thin'),
+                    top=Side(style='thin'),
+                    bottom=Side(style='thin')
+                )
+                
+                # Format header row
+                for cell in ws[1]:
+                    cell.fill = header_fill
+                    cell.font = Font(bold=True)
+                    cell.border = thin_border
+                
+                # Format data cells
+                for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=len(columns_order)):
+                    for cell in row:
+                        cell.border = thin_border
+                        # Format numeric cells (all except first two columns)
+                        if cell.column_letter not in ['A', 'B'] and isinstance(cell.value, (int, float)):
+                            cell.number_format = '#,##0_);(#,##0)'
+                
+                # Set column widths
+                for idx, column in enumerate(columns_order, 1):
+                    col_letter = get_column_letter(idx)
+                    if column == 'Uraian':
+                        ws.column_dimensions[col_letter].width = 40
+                    elif column == 'Tanggal':
+                        ws.column_dimensions[col_letter].width = 12
+                    else:
+                        ws.column_dimensions[col_letter].width = 18
+                
+                # Freeze the header row
+                ws.freeze_panes = 'A2'
+                
+                # Add filters to the header row
+                ws.auto_filter.ref = f"A1:{get_column_letter(len(columns_order))}1"
+
+            except Exception as e:
+                print(
+                    f"Error processing account {getattr(account, 'name', 'unknown')}: {str(e)}"
+                )
+                import traceback
+                traceback.print_exc()
+                continue
+        
+        # If no worksheets were created, add a default one
+        if len(wb.sheetnames) == 0:
+            ws = wb.create_sheet("Data")
+            ws.append(["Message"])
+            ws.append(["No valid data to export"])
+        
+        # Save the workbook
+        wb.save(output_path)
+        print(f"Successfully saved Excel file to {output_path}")
 
     except Exception as e:
         print(f"\n!!! Error in _create_excel_file: {str(e)}")
         import traceback
-
         traceback.print_exc()
         raise
 
