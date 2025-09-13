@@ -4,7 +4,8 @@ import {
   XMarkIcon as XIcon, 
   Bars3Icon as MenuIcon,
   ChartBarIcon, 
-  ArrowUpTrayIcon as UploadIcon
+  ArrowUpTrayIcon as UploadIcon,
+  DocumentTextIcon as DocumentIcon
 } from '@heroicons/react/24/outline';
 
 // Icon size classes using Tailwind spacing
@@ -46,6 +47,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const navigation = [
     { name: 'Upload', to: '/upload', icon: <UploadIcon className={iconClass} /> },
+    { name: 'Editor', to: '/editor', icon: <DocumentIcon className={iconClass} /> },
     { name: 'Reports', to: '/reports', icon: <ChartBarIcon className={iconClass} /> },
   ] as const;
 

@@ -8,6 +8,7 @@ import {
   DocumentArrowDownIcon,
   ArrowPathIcon
 } from '@heroicons/react/24/outline';
+import { downloadTemplate } from '@/services/api';
 
 interface AccountData {
   id: string;
@@ -38,10 +39,24 @@ const ALLOWED_FILE_TYPES = [
 const UploadPage = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [validationError, setValidationError] = useState<FileValidationError | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { dispatch } = useAppContext();
   const navigate = useNavigate();
+
+  const handleDownloadTemplate = async () => {
+    try {
+      setIsDownloading(true);
+      await downloadTemplate();
+      toast.success('Template berhasil diunduh');
+    } catch (error) {
+      console.error('Failed to download template:', error);
+      toast.error('Gagal mengunduh template. Silakan coba lagi.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
   
   // Format file size to human readable format
   const formatFileSize = (bytes: number): string => {
@@ -317,21 +332,18 @@ const UploadPage = () => {
             {validationError.message}
           </div>
         )}
-
-        <div className="mt-8 flex justify-center">
+        
+        <div className="mt-6 flex justify-center">
           <button
             type="button"
-            onClick={() => {
-              // In a real app, this would download a template file
-              toast.success('Template berhasil diunduh');
-            }}
+            onClick={handleDownloadTemplate}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isDownloading}
           >
-            {isSubmitting ? (
+            {isDownloading ? (
               <>
-                <ArrowPathIcon className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                Memproses...
+                <ArrowPathIcon className="animate-spin -ml-1 mr-2 h-5 w-5" />
+                Mengunduh...
               </>
             ) : (
               <>

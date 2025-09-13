@@ -22,6 +22,8 @@ export const EditorPage = () => {
     if (!selectedAccount) return;
     
     try {
+      dispatch({ type: 'SET_LOADING', payload: true });
+      
       const normalizedTransactions = transactions.map(tx => {
         // Ensure we have proper default values for the new structure
         const defaultPenerimaan = typeof tx.penerimaan === 'string' ? {} : (tx.penerimaan || {});
@@ -46,6 +48,7 @@ export const EditorPage = () => {
         };
       });
       
+      // First update the local state
       dispatch({
         type: 'UPDATE_ACCOUNT',
         payload: {
@@ -54,10 +57,44 @@ export const EditorPage = () => {
         }
       });
       
-      toast.success('Perubahan berhasil disimpan');
+      // Format data for the backend
+      const saveData = {
+        accounts: [{
+          id: selectedAccount.id,
+          name: selectedAccount.name,
+          transactions: normalizedTransactions
+        }]
+      };
+
+      // Then save to the backend
+      const response = await fetch('http://localhost:8000/api/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(saveData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save transactions');
+      }
+      
+      const result = await response.json();
+      
+      // Update local state with any server-side changes
+      if (result.success) {
+        toast.success('Transactions saved successfully');
+      }
     } catch (error) {
       console.error('Error saving transactions:', error);
-      toast.error('Gagal menyimpan perubahan');
+      toast.error('Failed to save transactions');
+      // Revert to the previous transactions if save fails
+      dispatch({
+        type: 'SET_ACCOUNTS',
+        payload: [...state.accounts]
+      });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
 

@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { ArrowDownTrayIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
-import axios from 'axios';
+import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { useAppContext } from '@/contexts/AppContext';
 
 interface ReportData {
   balance_sheet: {
@@ -24,353 +23,289 @@ interface ReportData {
   };
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+interface ChartDataPoint {
+  name: string;
+  value: number;
+}
 
-const ReportsPage = () => {
-  const location = useLocation();
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+const ReportsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [reports, setReports] = useState<ReportData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const { state } = useAppContext();
 
-  // Get reports from location state or load from session storage
-  useEffect(() => {
-    const loadReports = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        if (location.state?.reports) {
-          setReports(location.state.reports);
-          // Save to session storage for page refresh
-          sessionStorage.setItem('accountingReports', JSON.stringify(location.state.reports));
-        } else {
-          // Try to load from session storage on page refresh
-          const savedReports = sessionStorage.getItem('accountingReports');
-          if (savedReports) {
-            setReports(JSON.parse(savedReports));
-          } else {
-            // No reports found, redirect to upload
-            navigate('/upload');
-            return;
-          }
-        }
-      } catch (err) {
-        console.error('Error loading reports:', err);
-        setError('Failed to load reports. Please try again.');
-        toast.error('Failed to load reports');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadReports();
-  }, [location.state, navigate]);
-
-  const handleDownloadUpdated = async () => {
-    if (!reports) return;
-
+  const reports = useMemo<ReportData | null>(() => {
     try {
-      setIsDownloading(true);
-      
-      const response = await axios.post(
-        'http://localhost:8000/download-updated',
-        { reports }, // Send the current reports data
-        { 
-          responseType: 'blob',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      // Check if the response is valid
-      if (!response.data) {
-        throw new Error('No data received from server');
+      if (state.accounts.length === 0) {
+        return null;
       }
 
-      // Create a blob URL for the file
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `financial_report_${timestamp}.xlsx`;
-      
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      
-      // Clean up
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      }, 100);
-      
-      toast.success('Report downloaded successfully!');
-    } catch (error) {
-      console.error('Error downloading report:', error);
-      let errorMessage = 'Failed to download report';
-      
-      if (axios.isAxiosError(error)) {
-        if (error.response) {
-          // Server responded with an error status code
-          errorMessage = `Server error: ${error.response.status} - ${error.response.statusText}`;
-        } else if (error.request) {
-          // Request was made but no response received
-          errorMessage = 'No response from server. Please check your connection.';
-        } else {
-          // Something happened in setting up the request
-          errorMessage = `Request error: ${error.message}`;
+      const reportsData: ReportData = {
+        balance_sheet: {
+          assets: {},
+          liabilities: {},
+          equity: {}
+        },
+        income_statement: {
+          income: {},
+          expenses: {},
+          net_income: 0
+        },
+        cash_flow: {
+          operating: 0,
+          investing: 0,
+          financing: 0,
+          net_cash_flow: 0
         }
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
-      toast.error(errorMessage, { duration: 5000 });
-    } finally {
-      setIsDownloading(false);
+      };
+
+      // Process transactions from all accounts
+      state.accounts.forEach(account => {
+        account.transactions.forEach(transaction => {
+          // Process income (penerimaan)
+          Object.entries(transaction.penerimaan).forEach(([category, amount]) => {
+            const value = typeof amount === 'number' ? amount : 0;
+            reportsData.income_statement.income[category] = 
+              (reportsData.income_statement.income[category] || 0) + value;
+            reportsData.income_statement.net_income += value;
+          });
+
+          // Process expenses (pengeluaran)
+          Object.entries(transaction.pengeluaran).forEach(([category, amount]) => {
+            const value = typeof amount === 'number' ? amount : 0;
+            reportsData.income_statement.expenses[category] = 
+              (reportsData.income_statement.expenses[category] || 0) + value;
+            reportsData.income_statement.net_income -= value;
+          });
+        });
+      });
+
+      return reportsData;
+    } catch (err) {
+      console.error('Error generating reports:', err);
+      return null;
     }
-  };
+  }, [state.accounts]);
 
-  if (isLoading) {
+  const error = state.accounts.length === 0 ? 'Tidak ada data transaksi yang tersedia. Silakan unggah file terlebih dahulu.' : null;
+
+  const incomeData: ChartDataPoint[] = useMemo(() => {
+    if (!reports) return [];
+    return Object.entries(reports.income_statement.income).map(([name, value]) => ({
+      name,
+      value: typeof value === 'number' ? value : 0
+    }));
+  }, [reports]);
+
+  const expenseData: ChartDataPoint[] = useMemo(() => {
+    if (!reports) return [];
+    return Object.entries(reports.income_statement.expenses).map(([name, value]) => ({
+      name,
+      value: Math.abs(typeof value === 'number' ? value : 0)
+    }));
+  }, [reports]);
+
+  const cashFlowData: ChartDataPoint[] = useMemo(() => {
+    if (!reports) return [];
+    return [
+      { name: 'Operating', value: reports.cash_flow.operating || 0 },
+      { name: 'Investing', value: reports.cash_flow.investing || 0 },
+      { name: 'Financing', value: reports.cash_flow.financing || 0 },
+    ];
+  }, [reports]);
+
+  const renderBarChart = (title: string, data: ChartDataPoint[]) => (
+    <div className="bg-white p-6 rounded-lg shadow mb-6">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">{title}</h3>
+      <div className="h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+            <Legend />
+            <Bar dataKey="value" fill="#3b82f6" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+
+  if (state.isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen space-y-4">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary-500"></div>
-        <p className="text-lg text-gray-600">Loading financial reports...</p>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen space-y-4 p-4 text-center">
-        <div className="bg-red-100 p-4 rounded-full">
-          <svg className="h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                {error}
+              </p>
+            </div>
+          </div>
         </div>
-        <h2 className="text-2xl font-bold text-gray-800">Something went wrong</h2>
-        <p className="text-gray-600 max-w-md">{error}</p>
-        <div className="flex space-x-4 mt-4">
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-          >
-            Try Again
-          </button>
-          <button
-            onClick={() => navigate('/upload')}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-          >
-            Back to Upload
-          </button>
-        </div>
+        <button
+          onClick={() => navigate('/upload')}
+          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          Kembali ke Unggah File
+        </button>
       </div>
     );
   }
 
   if (!reports) {
-    return null; // This should not happen due to the redirect in useEffect
+    return null;
   }
 
-  const { balance_sheet, income_statement, cash_flow } = reports;
-
-  // Prepare data for charts
-  const incomeData = Object.entries(income_statement.income).map(([name, value]) => ({
-    name,
-    value: Math.abs(value),
-  }));
-
-  const expenseData = Object.entries(income_statement.expenses).map(([name, value]) => ({
-    name,
-    value: Math.abs(value),
-  }));
-
-  const cashFlowData = [
-    { name: 'Operating', value: cash_flow.operating },
-    { name: 'Investing', value: cash_flow.investing },
-    { name: 'Financing', value: cash_flow.financing },
-  ];
-
-  const renderAmount = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
-
-  const renderSection = (title: string, items: Record<string, number>, total: number) => (
-    <div className="bg-white p-4 rounded-lg shadow">
-      <h3 className="font-medium text-gray-900 mb-3">{title}</h3>
-      <div className="space-y-2">
-        {Object.entries(items).map(([name, value]) => (
-          <div key={name} className="flex justify-between">
-            <span className="text-gray-600">{name}</span>
-            <span className="font-medium">{renderAmount(value)}</span>
-          </div>
-        ))}
-        <div className="border-t border-gray-200 pt-2 mt-2">
-          <div className="flex justify-between font-semibold">
-            <span>Total {title}</span>
-            <span>{renderAmount(total)}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Financial Reports</h2>
-        <button
-          onClick={handleDownloadUpdated}
-          disabled={isDownloading}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-        >
-          <ArrowDownTrayIcon className="-ml-1 mr-2 h-5 w-5" />
-          {isDownloading ? 'Downloading...' : 'Download Report'}
-        </button>
-      </div>
-
-      {/* Balance Sheet */}
-      <section className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-xl font-semibold mb-4">Balance Sheet</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {renderSection(
-            'Assets',
-            balance_sheet.assets,
-            Object.values(balance_sheet.assets).reduce((a, b) => a + b, 0)
-          )}
-          {renderSection(
-            'Liabilities',
-            balance_sheet.liabilities,
-            Object.values(balance_sheet.liabilities).reduce((a, b) => a + b, 0)
-          )}
-          {renderSection(
-            'Equity',
-            balance_sheet.equity,
-            Object.values(balance_sheet.equity).reduce((a, b) => a + b, 0)
-          )}
+    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Laporan Keuangan</h1>
+          <button
+            onClick={() => navigate(-1)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <ArrowLeftIcon className="-ml-1 mr-2 h-5 w-5 text-gray-500" />
+            Kembali
+          </button>
         </div>
-      </section>
 
-      {/* Income Statement */}
-      <section className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-xl font-semibold mb-4">Income Statement</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <h4 className="font-medium text-gray-700 mb-3">Income</h4>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={incomeData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip formatter={(value) => [renderAmount(Number(value)), 'Amount']} />
-                  <Bar dataKey="value" fill="#00C49F" name="Income" />
-                </BarChart>
-              </ResponsiveContainer>
+        <div className="grid grid-cols-1 gap-6">
+          {/* Laporan Laba Rugi */}
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+              <h3 className="text-lg leading-6 font-medium text-gray-900">Laporan Laba Rugi</h3>
+              <p className="mt-1 max-w-2xl text-sm text-gray-500">Ringkasan pendapatan dan pengeluaran</p>
             </div>
-          </div>
-          <div>
-            <h4 className="font-medium text-gray-700 mb-3">Expenses</h4>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={expenseData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    nameKey="name"
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {expenseData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => [renderAmount(Number(value)), 'Amount']} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-        <div className="mt-6 pt-4 border-t border-gray-200">
-          <div className="flex justify-between items-center">
-            <span className="text-lg font-medium">Net Income</span>
-            <span className={`text-xl font-semibold ${
-              income_statement.net_income >= 0 ? 'text-green-600' : 'text-red-600'
-            }`}>
-              {renderAmount(income_statement.net_income)}
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Cash Flow */}
-      <section className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-xl font-semibold mb-4">Cash Flow Statement</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Cash from Operating Activities</span>
-                <span className="font-medium">{renderAmount(cash_flow.operating)}</span>
+            <div className="px-4 py-5 sm:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <h4 className="text-md font-medium text-gray-900 mb-4">Pendapatan</h4>
+                  {incomeData.length > 0 ? (
+                    <div className="space-y-2">
+                      {incomeData.map((item) => (
+                        <div key={item.name} className="flex justify-between">
+                          <span className="text-gray-600">{item.name}</span>
+                          <span className="font-medium">
+                            {formatCurrency(item.value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Tidak ada data pendapatan</p>
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-md font-medium text-gray-900 mb-4">Pengeluaran</h4>
+                  {expenseData.length > 0 ? (
+                    <div className="space-y-2">
+                      {expenseData.map((item) => (
+                        <div key={item.name} className="flex justify-between">
+                          <span className="text-gray-600">{item.name}</span>
+                          <span className="font-medium text-red-600">
+                            - {formatCurrency(item.value)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Tidak ada data pengeluaran</p>
+                  )}
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Cash from Investing Activities</span>
-                <span className="font-medium">{renderAmount(cash_flow.investing)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Cash from Financing Activities</span>
-                <span className="font-medium">{renderAmount(cash_flow.financing)}</span>
-              </div>
-              <div className="border-t border-gray-200 pt-3 mt-2">
-                <div className="flex justify-between font-semibold text-lg">
-                  <span>Net Increase in Cash</span>
-                  <span className={cash_flow.net_cash_flow >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    {renderAmount(cash_flow.net_cash_flow)}
+              <div className="mt-8 pt-4 border-t border-gray-200">
+                <div className="flex justify-between">
+                  <span className="text-lg font-medium">Laba/Rugi Bersih</span>
+                  <span className={`text-lg font-bold ${
+                    reports.income_statement.net_income >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {formatCurrency(reports.income_statement.net_income)}
                   </span>
                 </div>
               </div>
             </div>
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={cashFlowData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip formatter={(value) => [renderAmount(Number(value)), 'Amount']} />
-                <Bar dataKey="value" name="Cash Flow">
-                  {cashFlowData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.value >= 0 ? COLORS[1] : COLORS[5]} 
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+
+          {/* Grafik */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {renderBarChart('Pendapatan per Kategori', incomeData)}
+            {renderBarChart('Pengeluaran per Kategori', expenseData)}
+          </div>
+
+          {/* Arus Kas */}
+          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+              <h3 className="text-lg leading-6 font-medium text-gray-900">Laporan Arus Kas</h3>
+              <p className="mt-1 max-w-2xl text-sm text-gray-500">Ringkasan arus kas operasi, investasi, dan pendanaan</p>
+            </div>
+            <div className="px-4 py-5 sm:p-6">
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={cashFlowData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                    <Legend />
+                    <Bar dataKey="value" fill="#10b981" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <h4 className="text-sm font-medium text-gray-500">Kas dari Operasi</h4>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">
+                    {formatCurrency(reports.cash_flow.operating || 0)}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <h4 className="text-sm font-medium text-gray-500">Kas dari Investasi</h4>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">
+                    {formatCurrency(reports.cash_flow.investing || 0)}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-md">
+                  <h4 className="text-sm font-medium text-gray-500">Kas dari Pendanaan</h4>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">
+                    {formatCurrency(reports.cash_flow.financing || 0)}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <div className="flex justify-between">
+                  <span className="text-lg font-medium">Kenaikan/Penurunan Kas Bersih</span>
+                  <span className={`text-lg font-bold ${
+                    (reports.cash_flow.net_cash_flow || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {formatCurrency(reports.cash_flow.net_cash_flow || 0)}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
-
-      <div className="flex justify-center mt-8">
-        <button
-          onClick={() => navigate('/upload')}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-        >
-          <ArrowLeftIcon className="-ml-1 mr-2 h-5 w-5 text-gray-500" />
-          Back to Upload
-        </button>
       </div>
     </div>
   );

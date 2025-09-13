@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Response
+from fastapi import FastAPI, UploadFile, File, HTTPException, Response, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -15,14 +15,53 @@ import generate_template
 # Initialize FastAPI app
 app = FastAPI(title="Accounting Helper API")
 
-# Enable CORS
+# Enable CORS with dynamic origin handling
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+# Add middleware to handle CORS headers
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    # Allowed origins
+    allowed_origins = ["http://localhost:3000", "http://localhost:3001"]
+    
+    # Get origin from request
+    origin = request.headers.get("origin")
+    
+    # Handle preflight requests
+    if request.method == "OPTIONS":
+        if origin in allowed_origins:
+            response = JSONResponse(
+                content={"message": "OK"},
+                status_code=200,
+                headers={
+                    "Access-Control-Allow-Origin": origin,
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                    "Access-Control-Allow-Credentials": "true",
+                    "Access-Control-Max-Age": "86400",  # 24 hours
+                },
+            )
+        else:
+            response = JSONResponse(
+                content={"error": "Origin not allowed"},
+                status_code=403
+            )
+    else:
+        response = await call_next(request)
+        # Add CORS headers to all responses
+        if origin in allowed_origins:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Vary"] = "Origin"
+    
+    return response
 
 # Mount static files for frontend if dist directory exists
 if Path("dist").exists():

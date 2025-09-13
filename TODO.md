@@ -48,6 +48,9 @@
 - [x] Cleaned up unused code and imports
 - [x] Standardized Indonesian field names across components
 - [x] Added proper loading states for file uploads
+- [x] Updated EditorPage to handle transaction saving
+- [x] Fixed file handling in backend save endpoint
+- [ ] Resolve CORS issues between frontend and backend
 
 ## Testing & Validation (Next Up)
 - [ ] Unit tests for backend API
@@ -103,14 +106,14 @@
 ## Current Issues
 - [x] Resolve source map warnings in development
 - [x] Fix React Router future flag warnings
-- [ ] Implement template download functionality
-  - [ ] Connect download button to backend /template endpoint
-  - [ ] Ensure proper file download with correct MIME type
-  - [ ] Add error handling for failed downloads
-- [ ] Fix Reports page access
-  - [ ] Implement basic Reports page component
-  - [ ] Add route in App.tsx
-  - [ ] Add navigation link in the sidebar/menu
+- [x] Implement template download functionality
+  - [x] Connect download button to backend /template endpoint
+  - [x] Ensure proper file download with correct MIME type
+  - [x] Add error handling for failed downloads
+- [x] Fix Reports page access
+  - [x] Implement basic Reports page component
+  - [x] Add route in App.tsx
+  - [x] Add navigation link in the sidebar/menu
 - [ ] UI/UX Improvements
   - [ ] Add loading skeletons for better perceived performance
   - [ ] Improve form validation feedback
@@ -127,6 +130,23 @@
 - [ ] Performance
   - [ ] Virtualize transaction list for large datasets
   - [ ] Optimize Excel parsing/generation
+
+## Frontend Pages
+- [x] Upload Page
+  - [x] File upload component
+  - [x] Drag and drop support
+  - [x] File type validation
+  - [x] Progress indicators
+- [x] Editor Page
+  - [x] Transaction table with inline editing
+  - [x] Add/delete transaction functionality
+  - [x] Save changes button
+  - [x] Form validation
+- [x] Reports Page
+  - [x] Financial summary cards
+  - [x] Charts for income/expenses
+  - [x] Export to PDF/Excel
+  - [x] Date range filtering
 
 ## Documentation
 - [x] Basic README
