@@ -49,12 +49,16 @@
   - [x] Add/delete transaction functionality
   - [x] Save changes button
   - [x] Form validation
+  - [ ] Date range filtering
+  - [ ] Transaction search and filtering
 - [x] Reports Page
   - [x] Financial summary cards
   - [x] Charts for income/expenses
   - [x] Export to PDF/Excel
   - [x] Account switching functionality
-  - [] Date range filtering
+  - [x] Monthly/Yearly/Running balance reports
+  - [x] Improved chart visualization with number formatting (jt/k)
+
 
 ## Recent Improvements
 - [x] Fixed template download functionality
@@ -97,24 +101,17 @@
 
 - [ ] Reporting
   - [ ] Generate monthly reports
+  - [ ] Generate yearly reports
+  - [ ] Generate running balance reports
   - [ ] Export reports to PDF/Excel
-  - [ ] Visualize spending/income trends
+  - [ ] Visualize spending/income trends (line chart)
 
 - [ ] UI/UX Improvements
   - [ ] Add loading skeletons for better perceived performance
   - [ ] Improve form validation feedback
   - [ ] Add success/error toast notifications
   - [ ] Enhance mobile responsiveness
-  - [ ] Add keyboard shortcuts for common actions
   - [ ] Implement dark mode
-
-## Backlog
-- [ ] Cloud backup and sync
-- [ ] Recurring transactions
-- [ ] Receipt image upload and attachment
-- [ ] Multi-currency support
-- [ ] Tax calculation and reporting
-- [ ] Budget tracking and alerts
 
 ## Testing
 - [ ] Unit tests for utility functions
@@ -144,6 +141,7 @@
 - [ ] Add loading states for report generation
 - [ ] Add error boundaries for report components
 
+
 ## Future Enhancements
 - [ ] Add category management interface
 - [ ] Implement category filtering and grouping
@@ -162,6 +160,14 @@
   - [ ] Template download
   - [ ] Save/load from localStorage
 
+
+## Backlog
+- [ ] Cloud backup and sync
+- [ ] Recurring transactions
+- [ ] Receipt image upload and attachment
+- [ ] Multi-currency support
+- [ ] Tax calculation and reporting
+- [ ] Budget tracking and alerts
 
 
 

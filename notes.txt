@@ -25,3 +25,15 @@ Test the API endpoints
 Implement the frontend components
 Add data validation and error handling
 Implement the transaction editor UI
+
+
+
+monthly balance Report 
+yearly balance Report
+running balance Report
+
+export report
+
+security?
+
+backup? saving?

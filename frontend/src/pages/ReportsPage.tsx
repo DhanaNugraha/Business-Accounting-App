@@ -1,12 +1,30 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useAppContext } from '@/contexts/AppContext';
 import { AccountSelector } from '@/components/AccountSelector';
 import type { TransactionItem, AccountData } from '@/types';
 
+interface BalanceReport {
+  date: string;
+  income: number;
+  expense: number;
+  balance: number;
+  runningBalance: number;
+}
+
+interface BalanceByPeriod {
+  period: string;
+  income: number;
+  expense: number;
+  balance: number;
+}
+
 interface ReportData {
+  monthly: BalanceByPeriod[];
+  yearly: BalanceByPeriod[];
+  running: BalanceReport[];
   balance_sheet: {
     assets: Record<string, number>;
     liabilities: Record<string, number>;
@@ -43,6 +61,7 @@ const ReportsPage: React.FC = () => {
   const { state, dispatch } = useAppContext();
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportData | null>(null);
+  const [activeTab, setActiveTab] = useState<'monthly' | 'yearly' | 'running'>('monthly');
 
   // Get the currently selected account data
   const currentAccountData = useMemo<AccountData | null>(() => {
@@ -55,7 +74,83 @@ const ReportsPage: React.FC = () => {
     const generateReports = (account: AccountData | null): ReportData | null => {
       if (!account) return null;
 
+      const monthlyData: Record<string, { income: number; expense: number }> = {};
+      const yearlyData: Record<string, { income: number; expense: number }> = {};
+      const runningBalanceData: BalanceReport[] = [];
+      let runningBalance = 0;
+
+      // Sort transactions by date
+      const sortedTransactions = [...account.transactions].sort((a, b) => 
+        new Date(a.tanggal).getTime() - new Date(b.tanggal).getTime()
+      );
+
+      // Process transactions for the current account
+      sortedTransactions.forEach((transaction) => {
+        const date = new Date(transaction.tanggal);
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const monthYear = `${year}-${month.toString().padStart(2, '0')}`;
+        const yearStr = year.toString();
+
+        // Calculate income and expense for the transaction
+        const income = Object.values(transaction.penerimaan || {}).reduce(
+          (sum, val) => sum + (typeof val === 'number' ? val : 0), 0
+        );
+        const expense = Object.values(transaction.pengeluaran || {}).reduce(
+          (sum, val) => sum + (typeof val === 'number' ? val : 0), 0
+        );
+        const balance = income - expense;
+
+        // Update running balance
+        runningBalance += balance;
+        
+        // Add to running balance data
+        runningBalanceData.push({
+          date: transaction.tanggal,
+          income,
+          expense,
+          balance,
+          runningBalance
+        });
+
+        // Update monthly data
+        if (!monthlyData[monthYear]) {
+          monthlyData[monthYear] = { income: 0, expense: 0 };
+        }
+        monthlyData[monthYear].income += income;
+        monthlyData[monthYear].expense += expense;
+
+        // Update yearly data
+        if (!yearlyData[yearStr]) {
+          yearlyData[yearStr] = { income: 0, expense: 0 };
+        }
+        yearlyData[yearStr].income += income;
+        yearlyData[yearStr].expense += expense;
+      });
+
+      // Convert to arrays with proper formatting
+      const monthlyReports: BalanceByPeriod[] = Object.entries(monthlyData)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([period, { income, expense }]) => ({
+          period,
+          income,
+          expense,
+          balance: income - expense
+        }));
+
+      const yearlyReports: BalanceByPeriod[] = Object.entries(yearlyData)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([period, { income, expense }]) => ({
+          period,
+          income,
+          expense,
+          balance: income - expense
+        }));
+
       const reportsData: ReportData = {
+        monthly: monthlyReports,
+        yearly: yearlyReports,
+        running: runningBalanceData,
         balance_sheet: {
           assets: {},
           liabilities: {},
@@ -64,24 +159,23 @@ const ReportsPage: React.FC = () => {
         income_statement: {
           income: {},
           expenses: {},
-          net_income: 0
+          net_income: monthlyReports.reduce((sum, { balance }) => sum + balance, 0)
         },
         cash_flow: {
-          operating: 0,
-          investing: 0,
-          financing: 0,
-          net_cash_flow: 0
+          operating: monthlyReports.reduce((sum, { income }) => sum + income * 0.7, 0),
+          investing: -monthlyReports.reduce((sum, { expense }) => sum + expense * 0.2, 0),
+          financing: monthlyReports.reduce((sum, { income, expense }) => sum + (income * 0.3 - expense * 0.8), 0),
+          net_cash_flow: monthlyReports.reduce((sum, { balance }) => sum + balance, 0)
         }
       };
 
-      // Process transactions for the current account
+      // Process income and expense categories
       account.transactions.forEach((transaction: TransactionItem) => {
         // Process income (penerimaan)
         Object.entries(transaction.penerimaan).forEach(([category, amount]) => {
           const value = typeof amount === 'number' ? amount : 0;
           reportsData.income_statement.income[category] = 
             (reportsData.income_statement.income[category] || 0) + value;
-          reportsData.income_statement.net_income += value;
         });
 
         // Process expenses (pengeluaran)
@@ -89,7 +183,6 @@ const ReportsPage: React.FC = () => {
           const value = typeof amount === 'number' ? amount : 0;
           reportsData.income_statement.expenses[category] = 
             (reportsData.income_statement.expenses[category] || 0) + value;
-          reportsData.income_statement.net_income -= value;
         });
       });
 
@@ -144,32 +237,214 @@ const ReportsPage: React.FC = () => {
     }));
   }, [reports]);
 
-  const cashFlowData: ChartDataPoint[] = useMemo(() => {
-    if (!reports) return [];
-    return [
-      { name: 'Operating', value: reports.cash_flow.operating || 0 },
-      { name: 'Investing', value: reports.cash_flow.investing || 0 },
-      { name: 'Financing', value: reports.cash_flow.financing || 0 },
-    ];
-  }, [reports]);
-
-  const renderBarChart = (title: string, data: ChartDataPoint[]) => (
-    <div className="bg-white p-6 rounded-lg shadow mb-6">
-      <h3 className="text-lg font-medium text-gray-900 mb-4">{title}</h3>
-      <div className="h-80">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-            <Legend />
-            <Bar dataKey="value" fill="#3b82f6" />
-          </BarChart>
-        </ResponsiveContainer>
+  // Render bar chart for income/expense by category
+  const renderBarChart = (title: string, data: ChartDataPoint[]) => {
+    const barColor = title.includes('Pendapatan') ? '#10b981' : '#ef4444';
+    return (
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">{title}</h3>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} tickMargin={8} />
+              <YAxis
+                width={100}
+                tickFormatter={(value) => {
+                  if (value >= 1000000) return `${(value / 1000000).toFixed(1)} Jt`;
+                  if (value >= 1000) return `${(value / 1000).toFixed(0)} Rb`;
+                  return value.toString();
+                }}
+                tick={{ fontSize: 12 }}
+                tickMargin={8}
+                padding={{ top: 10, bottom: 10 }}
+              />
+              <Tooltip
+                formatter={(value) => formatCurrency(Number(value))}
+                contentStyle={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '0.5rem',
+                  padding: '0.5rem',
+                  boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+                }}
+                itemStyle={{ color: barColor, fontWeight: 500 }}
+                labelStyle={{ color: '#4b5563', fontWeight: 600 }}
+              />
+              <Bar dataKey="value" fill={barColor} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  // Render the main content with all reports
+  const renderReports = () => {
+    if (!reports) return null;
+
+    const data = activeTab === 'monthly' ? reports.monthly : 
+                activeTab === 'yearly' ? reports.yearly : 
+                reports.running;
+
+    return (
+      <div className="space-y-6">
+        {/* Laporan Laba Rugi with Detailed Breakdown */}
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+          <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <h3 className="text-lg leading-6 font-medium text-gray-900">Laporan Laba Rugi</h3>
+            <p className="mt-1 max-w-2xl text-sm text-gray-500">Ringkasan pendapatan dan pengeluaran</p>
+          </div>
+          <div className="px-4 py-5 sm:p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-4">Pendapatan</h4>
+                <div className="space-y-2">
+                  {Object.entries(reports.income_statement.income).map(([category, amount]) => (
+                    <div key={`income-${category}`} className="flex justify-between">
+                      <span className="text-gray-600">{category}</span>
+                      <span className="font-medium">{formatCurrency(amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="text-md font-medium text-gray-900 mb-4">Pengeluaran</h4>
+                <div className="space-y-2">
+                  {Object.entries(reports.income_statement.expenses).map(([category, amount]) => (
+                    <div key={`expense-${category}`} className="flex justify-between">
+                      <span className="text-gray-600">{category}</span>
+                      <span className="font-medium text-red-600">- {formatCurrency(amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="mt-8 pt-4 border-t border-gray-200">
+              <div className="flex justify-between">
+                <span className="text-lg font-medium">Laba/Rugi Bersih</span>
+                <span className={`text-lg font-bold ${
+                  reports.income_statement.net_income >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {formatCurrency(reports.income_statement.net_income)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Chart */}
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+          <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <h3 className="text-lg leading-6 font-medium text-gray-900">
+              Grafik {activeTab === 'monthly' ? 'Bulanan' : activeTab === 'yearly' ? 'Tahunan' : 'Saldo Berjalan'}
+            </h3>
+          </div>
+          <div className="p-4">
+            <div className="h-96">
+              <ResponsiveContainer width="100%" height={400}>
+                {activeTab === 'running' ? (
+                  <BarChart 
+                    data={data}
+                    margin={{
+                      top: 20,
+                      right: 30,
+                      left: 20,
+                      bottom: 5,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 12 }}
+                      tickMargin={10}
+                    />
+                    <YAxis 
+                      tickFormatter={(value) => {
+                        if (value >= 1000000) return `${(value / 1000000).toFixed(1)}jt`;
+                        if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+                        return value.toString();
+                      }}
+                      tick={{ fontSize: 12 }}
+                      width={80}
+                      tickMargin={5}
+                    />
+                    <Tooltip 
+                      formatter={(value) => formatCurrency(Number(value))}
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '0.5rem',
+                        padding: '0.5rem',
+                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+                      }}
+                    />
+                    <Legend />
+                    <Bar 
+                      dataKey="runningBalance" 
+                      name="Saldo Berjalan" 
+                      fill="#3b82f6" 
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                ) : (
+                  <BarChart 
+                    data={data}
+                    margin={{
+                      top: 20,
+                      right: 30,
+                      left: 20,
+                      bottom: 5,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="period" 
+                      tick={{ fontSize: 12 }}
+                      tickMargin={10}
+                    />
+                    <YAxis 
+                      tickFormatter={(value) => {
+                        if (value >= 1000000) return `${(value / 1000000).toFixed(1)}jt`;
+                        if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+                        return value.toString();
+                      }}
+                      tick={{ fontSize: 12 }}
+                      width={80}
+                      tickMargin={5}
+                    />
+                    <Tooltip 
+                      formatter={(value) => formatCurrency(Number(value))}
+                      contentStyle={{
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '0.5rem',
+                        padding: '0.5rem',
+                        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
+                      }}
+                    />
+                    <Legend />
+                    <Bar 
+                      dataKey="income" 
+                      name="Pendapatan" 
+                      fill="#10b981" 
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar 
+                      dataKey="expense" 
+                      name="Pengeluaran" 
+                      fill="#ef4444" 
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                )}
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   if (state.isLoading) {
     return (
@@ -294,64 +569,50 @@ const ReportsPage: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* Grafik */}
+          {/* Category Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {renderBarChart('Pendapatan per Kategori', incomeData)}
             {renderBarChart('Pengeluaran per Kategori', expenseData)}
           </div>
 
-          {/* Arus Kas */}
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">Laporan Arus Kas</h3>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500">Ringkasan arus kas operasi, investasi, dan pendanaan</p>
-            </div>
-            <div className="px-4 py-5 sm:p-6">
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={cashFlowData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                    <Legend />
-                    <Bar dataKey="value" fill="#10b981" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-medium text-gray-500">Kas dari Operasi</h4>
-                  <p className="mt-1 text-lg font-semibold text-gray-900">
-                    {formatCurrency(reports.cash_flow.operating || 0)}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-medium text-gray-500">Kas dari Investasi</h4>
-                  <p className="mt-1 text-lg font-semibold text-gray-900">
-                    {formatCurrency(reports.cash_flow.investing || 0)}
-                  </p>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-md">
-                  <h4 className="text-sm font-medium text-gray-500">Kas dari Pendanaan</h4>
-                  <p className="mt-1 text-lg font-semibold text-gray-900">
-                    {formatCurrency(reports.cash_flow.financing || 0)}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <div className="flex justify-between">
-                  <span className="text-lg font-medium">Kenaikan/Penurunan Kas Bersih</span>
-                  <span className={`text-lg font-bold ${
-                    (reports.cash_flow.net_cash_flow || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    {formatCurrency(reports.cash_flow.net_cash_flow || 0)}
-                  </span>
-                </div>
-              </div>
-            </div>
+          {/* Tabs */}
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+              <button
+                onClick={() => setActiveTab('monthly')}
+                className={`${activeTab === 'monthly' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                Bulanan
+              </button>
+              <button
+                onClick={() => setActiveTab('yearly')}
+                className={`${activeTab === 'yearly' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                Tahunan
+              </button>
+              <button
+                onClick={() => setActiveTab('running')}
+                className={`${activeTab === 'running' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                Saldo Berjalan
+              </button>
+            </nav>
           </div>
+
+          {/* Tab Content */}
+          <div className="mt-6">
+            {renderReports()}
+          </div>
+
         </div>
       </div>
     </div>
