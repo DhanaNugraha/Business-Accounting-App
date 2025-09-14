@@ -100,11 +100,11 @@
   - [ ] Filter by category
 
 - [ ] Reporting
-  - [ ] Generate monthly reports
-  - [ ] Generate yearly reports
-  - [ ] Generate running balance reports
+  - [X] Generate monthly reports
+  - [X] Generate yearly reports
+  - [X] Generate running balance reports
   - [ ] Export reports to PDF/Excel
-  - [ ] Visualize spending/income trends (line chart)
+  - [X] Visualize spending/income trends (line chart)
 
 - [ ] UI/UX Improvements
   - [ ] Add loading skeletons for better perceived performance
@@ -133,8 +133,14 @@
 - [ ] Document multi-account data structure
 
 ## UI/UX Improvements
-- [ ] Add validation for category names
-- [ ] Implement duplicate category prevention
+- [x] Add validation for category names
+- [x] Implement duplicate category prevention
+- [x] Improve form layout with two-row design
+- [x] Add currency formatting for amount input
+- [x] Fix form field alignment and spacing
+- [x] Make category input more user-friendly
+- [x] Prevent layout shifts during input
+- [x] Add visual feedback for form validation
 - [ ] Add tooltips for category management
 - [ ] Improve mobile responsiveness for transaction editor
 - [ ] Add visual indicators for category totals

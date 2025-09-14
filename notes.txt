@@ -37,3 +37,28 @@ export report
 security?
 
 backup? saving?
+
+add saldo berjalan di excel
+
+
+
+1. Date Validation
+Ensure dates are in the correct format (YYYY-MM-DD)
+Validate that dates are not in the future
+Optionally, set a reasonable date range (e.g., not older than 10 years)
+2. Numeric Validation
+Ensure all amount fields contain valid numbers
+Validate decimal places (if applicable) 
+3. Category Validation
+Validate category name format (e.g., no special characters)
+4. Required Fields
+Add validation for all required fields
+Provide clear error messages for missing or invalid fields
+5. Transaction Integrity
+Ensure the sum of all transactions matches the account balance
+Validate that deletion of a transaction doesn't cause a negative balance
+Make a pop up to make sure of transaction deletion
+6. Error Handling
+Improve error messages to be more user-friendly
+Add client-side validation before making API calls
+Show validation errors inline with the relevant fields
