@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TransactionItem } from '@/types';
-import { TrashIcon, PlusIcon, CheckIcon as CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PlusIcon, CheckIcon as CheckCircleIcon, XMarkIcon, PencilIcon } from '@heroicons/react/24/outline';
 
 interface TransactionEditorProps {
   transactions: TransactionItem[];
@@ -11,6 +11,7 @@ interface TransactionEditorProps {
 export const TransactionEditor = ({ transactions, onSave, accountName }: TransactionEditorProps) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editedTransactions, setEditedTransactions] = useState<TransactionItem[]>(transactions);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [simpleForm, setSimpleForm] = useState({
     tanggal: new Date().toISOString().split('T')[0],
     uraian: '',
@@ -72,17 +73,36 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     }).format(Number(value) || 0);
   };
 
-  const handleSimpleAdd = (e: React.FormEvent) => {
+  const handleEditTransaction = (tx: TransactionItem) => {
+    const txType = Object.keys(tx.penerimaan || {}).length > 0 ? 'penerimaan' : 'pengeluaran';
+    const amount = txType === 'penerimaan' 
+      ? tx.penerimaan[Object.keys(tx.penerimaan)[0]] 
+      : tx.pengeluaran[Object.keys(tx.pengeluaran)[0]];
+    
+    setSimpleForm({
+      tanggal: tx.tanggal,
+      uraian: tx.uraian,
+      jumlah: amount.toString(),
+      tipe: txType,
+      kategori: txType === 'penerimaan' 
+        ? Object.keys(tx.penerimaan)[0] 
+        : Object.keys(tx.pengeluaran)[0]
+    });
+    
+    setEditingId(tx.id);
+    setIsAdding(true);
+  };
+
+  const handleSaveTransaction = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Simple form submitted:', simpleForm);
+    console.log('Saving transaction:', simpleForm);
     
     if (!simpleForm.tanggal || !simpleForm.uraian || !simpleForm.jumlah) {
       console.error('Missing required fields');
       return;
     }
 
-    const newTx: TransactionItem = {
-      id: `tx-${Date.now()}`,
+    const txData: Omit<TransactionItem, 'id'> = {
       tanggal: simpleForm.tanggal,
       uraian: simpleForm.uraian,
       penerimaan: {},
@@ -91,16 +111,31 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     };
 
     if (simpleForm.tipe === 'penerimaan') {
-      newTx.penerimaan = { [simpleForm.kategori || 'Lainnya']: Number(simpleForm.jumlah) };
+      txData.penerimaan = { [simpleForm.kategori || 'Lainnya']: Number(simpleForm.jumlah) };
     } else {
-      newTx.pengeluaran = { [simpleForm.kategori || 'Lainnya']: Number(simpleForm.jumlah) };
+      txData.pengeluaran = { [simpleForm.kategori || 'Lainnya']: Number(simpleForm.jumlah) };
     }
 
-    const penerimaanTotal = Object.values(newTx.penerimaan).reduce((sum, val) => sum + (Number(val) || 0), 0);
-    const pengeluaranTotal = Object.values(newTx.pengeluaran).reduce((sum, val) => sum + (Number(val) || 0), 0);
-    newTx.saldo = penerimaanTotal - pengeluaranTotal;
+    const penerimaanTotal = Object.values(txData.penerimaan).reduce((sum, val) => sum + (Number(val) || 0), 0);
+    const pengeluaranTotal = Object.values(txData.pengeluaran).reduce((sum, val) => sum + (Number(val) || 0), 0);
+    txData.saldo = penerimaanTotal - pengeluaranTotal;
 
-    const updated = [...editedTransactions, newTx];
+    let updated: TransactionItem[];
+    if (editingId) {
+      // Update existing transaction
+      updated = editedTransactions.map(tx => 
+        tx.id === editingId ? { ...txData, id: editingId } : tx
+      );
+      setEditingId(null);
+    } else {
+      // Add new transaction
+      const newTx: TransactionItem = {
+        ...txData,
+        id: `tx-${Date.now()}`
+      };
+      updated = [...editedTransactions, newTx];
+    }
+
     setEditedTransactions(updated);
     onSave(updated);
     
@@ -146,7 +181,9 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
       {isAdding && (
         <div className="bg-blue-50 p-4 sm:p-6 rounded-lg shadow-sm mb-6 border border-blue-100 overflow-hidden">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Tambah Transaksi Baru</h3>
+            <h3 className="text-lg font-medium text-gray-900">
+              {editingId ? 'Edit Transaksi' : 'Tambah Transaksi Baru'}
+            </h3>
             <button
               onClick={() => setIsAdding(false)}
               className="text-gray-500 hover:text-gray-700"
@@ -156,7 +193,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
             </button>
           </div>
           
-          <form onSubmit={handleSimpleAdd}>
+          <form onSubmit={handleSaveTransaction}>
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
                 <div className="lg:col-span-2">
@@ -246,13 +283,22 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                   )}
                 </div>
                 
-                <div className="lg:col-span-1 flex items-end">
+                <div className="lg:col-span-1 flex items-center">
                   <button
                     type="submit"
                     className="w-full h-10 inline-flex justify-center items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                   >
-                    <PlusIcon className="h-4 w-4 sm:mr-1.5" />
-                    <span className="text-xs sm:text-sm">Tambah</span>
+                    {editingId ? (
+                      <>
+                        <CheckCircleIcon className="h-4 w-4 sm:mr-1" />
+                        <span className="text-xs">Simpan</span>
+                      </>
+                    ) : (
+                      <>
+                        <PlusIcon className="h-4 w-4 sm:mr-1.5" />
+                        <span className="text-xs sm:text-sm">Tambah</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -299,7 +345,14 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-gray-900 w-32">
                   {formatCurrency(tx.saldo?.toString() || '0')}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                  <button
+                    onClick={() => handleEditTransaction(tx)}
+                    className="text-blue-600 hover:text-blue-900"
+                    title="Edit transaksi"
+                  >
+                    <PencilIcon className="h-5 w-5" />
+                  </button>
                   <button
                     onClick={() => handleDelete(tx.id)}
                     className="text-red-600 hover:text-red-900"

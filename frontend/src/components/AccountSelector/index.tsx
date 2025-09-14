@@ -1,35 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { ChevronDownIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { AccountData, TransactionItem } from '@/types';
-import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 interface AccountSelectorProps {
   accounts: AccountData[];
-  selectedAccount: string;
+  selectedAccountId: string | null;
   onSelect: (accountName: string) => void;
+  onAddAccount: () => void;
   className?: string;
 }
 
 export const AccountSelector = ({
   accounts,
-  selectedAccount,
+  selectedAccountId,
   onSelect,
+  onAddAccount,
   className = ''
 }: AccountSelectorProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [currentAccount, setCurrentAccount] = useState<AccountData | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const selectedAccount = accounts.find(acc => acc.name === selectedAccountId);
 
-  useEffect(() => {
-    const account = accounts.find(acc => acc.name === selectedAccount) || null;
-    setCurrentAccount(account);
-  }, [selectedAccount, accounts]);
+  const filteredAccounts = accounts.filter(account =>
+    account.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const calculateBalance = (account: AccountData | null): string => {
-    if (!account) return 'Rp 0';
+  const calculateBalance = (account: AccountData): string => {
+    if (!account?.transactions?.length) return 'Rp 0';
     
     const balance = account.transactions.reduce((sum: number, tx: TransactionItem) => {
-      const penerimaan = Number(tx.penerimaan) || 0;
-      const pengeluaran = Number(tx.pengeluaran) || 0;
-      return sum + (penerimaan - pengeluaran);
+      const income = Object.values(tx.penerimaan || {}).reduce((a: number, b: number) => a + (Number(b) || 0), 0);
+      const expense = Object.values(tx.pengeluaran || {}).reduce((a: number, b: number) => a + (Number(b) || 0), 0);
+      return sum + (income - expense);
     }, 0);
     
     return new Intl.NumberFormat('id-ID', {
@@ -42,46 +44,56 @@ export const AccountSelector = ({
 
   return (
     <div className={`relative ${className}`}>
-      <div className="flex items-center justify-between space-x-4 bg-white border border-gray-300 rounded-md shadow-sm px-4 py-2 cursor-pointer hover:bg-gray-50"
-           onClick={() => setIsOpen(!isOpen)}>
-        <div>
-          <p className="text-sm font-medium text-gray-900">
-            {currentAccount?.name || 'Pilih Akun'}
+      <div 
+        className="flex items-center justify-between w-full px-4 py-2 text-sm bg-white border border-gray-300 rounded-md shadow-sm cursor-pointer hover:bg-gray-50"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className="min-w-0">
+          <p className="font-medium text-gray-900 truncate">
+            {selectedAccountId || 'Pilih Akun'}
           </p>
-          <p className="text-xs text-gray-500">
-            Saldo: {calculateBalance(currentAccount)}
-          </p>
+          {selectedAccount && (
+            <p className="text-xs text-gray-500 truncate">
+              Saldo: {calculateBalance(selectedAccount)}
+            </p>
+          )}
         </div>
         <ChevronDownIcon 
-          className={`h-5 w-5 text-gray-400 transition-transform duration-200 ${isOpen ? 'transform rotate-180' : ''}`} 
-          aria-hidden="true" 
+          className={`w-5 h-5 ml-2 text-gray-400 ${isOpen ? 'transform rotate-180' : ''}`}
+          aria-hidden="true"
         />
       </div>
 
       {isOpen && (
-        <>
-          <div 
-            className="fixed inset-0 z-10"
-            onClick={() => setIsOpen(false)}
-          />
-          <div className="absolute z-20 mt-1 w-full bg-white shadow-lg rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
-            {accounts.map((account) => (
+        <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg">
+          <div className="p-2 border-b">
+            <input
+              type="text"
+              placeholder="Cari akun..."
+              className="w-full px-3 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <div className="max-h-60 overflow-y-auto">
+            {filteredAccounts.map((account) => (
               <div
                 key={account.name}
-                className={`px-4 py-2 text-sm cursor-pointer ${
-                  selectedAccount === account.name 
-                    ? 'bg-blue-50 text-blue-900' 
-                    : 'text-gray-700 hover:bg-gray-100'
+                className={`px-4 py-2 text-sm cursor-pointer hover:bg-gray-100 ${
+                  selectedAccountId === account.name ? 'bg-blue-50 text-blue-900' : 'text-gray-700'
                 }`}
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onSelect(account.name);
                   setIsOpen(false);
+                  setSearchTerm('');
                 }}
               >
-                <div className="flex justify-between items-center">
-                  <span className="font-medium">{account.name}</span>
-                  <span className="text-xs text-gray-500">
-                    {account.transactions.length} transaksi
+                <div className="flex items-center justify-between">
+                  <span className="font-medium truncate">{account.name}</span>
+                  <span className="ml-2 text-xs text-gray-500 whitespace-nowrap">
+                    {account.transactions?.length || 0} transaksi
                   </span>
                 </div>
                 <div className="text-xs text-gray-500 truncate">
@@ -89,8 +101,30 @@ export const AccountSelector = ({
                 </div>
               </div>
             ))}
+            <button
+              type="button"
+              className="flex items-center w-full px-4 py-2 text-sm text-left text-blue-600 hover:bg-blue-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddAccount();
+                setIsOpen(false);
+              }}
+            >
+              <PlusIcon className="w-4 h-4 mr-2" />
+              Tambah Akun Baru
+            </button>
           </div>
-        </>
+        </div>
+      )}
+      
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-0"
+          onClick={() => {
+            setIsOpen(false);
+            setSearchTerm('');
+          }}
+        />
       )}
     </div>
   );

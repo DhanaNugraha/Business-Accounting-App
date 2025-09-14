@@ -1,121 +1,165 @@
+import { useState } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import type { TransactionItem } from '@/types';
 import { TransactionEditor } from '@/components/TransactionEditor';
+import { AccountSelector } from '@/components/AccountSelector';
 import { toast } from 'react-hot-toast';
+import { PlusIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
 export const EditorPage = () => {
   const { state, dispatch } = useAppContext();
+  const [isSaving, setIsSaving] = useState(false);
   
-  if (!state.currentAccount) {
-    return <div>No account selected</div>;
-  }
+  const selectedAccount = state.accounts.find(acc => acc.name === state.currentAccount);
   
-  const selectedAccount = state.accounts.find(acc => acc.id === state.currentAccount);
+  const handleAddAccount = () => {
+    const accountName = prompt('Masukkan nama akun baru:');
+    if (accountName && !state.accounts.some(acc => acc.name === accountName)) {
+      dispatch({ 
+        type: 'ADD_ACCOUNT', 
+        payload: {
+          name: accountName,
+          transactions: [],
+          balance: 0
+        } 
+      });
+    } else if (accountName) {
+      toast.error('Nama akun sudah ada');
+    }
+  };
   
-  if (!selectedAccount) {
-    return <div>Account not found</div>;
-  }
-
-  // ... rest of the component code ...
+  const handleSelectAccount = (accountName: string) => {
+    dispatch({
+      type: 'SET_CURRENT_ACCOUNT',
+      payload: accountName
+    });
+  };
 
   const handleSaveTransactions = (transactions: TransactionItem[]) => {
     if (!selectedAccount) {
-      const error = 'No account selected';
+      const error = 'Tidak ada akun yang dipilih';
       console.error(error);
       toast.error(error);
       return;
     }
     
-    // Just update the local state without exporting
-    dispatch({
-      type: 'UPDATE_ACCOUNT',
-      payload: {
-        accountId: selectedAccount.id,
-        transactions: [...transactions]
-      }
-    });
-    
-    toast.success('Transactions saved successfully');
+    try {
+      dispatch({
+        type: 'UPDATE_ACCOUNT',
+        payload: {
+          accountName: selectedAccount.name,
+          transactions: [...transactions]
+        }
+      });
+      toast.success('Transaksi disimpan');
+    } catch (error) {
+      console.error('Failed to save transactions:', error);
+      toast.error('Gagal menyimpan transaksi');
+    }
   };
 
   const handleExportToExcel = async () => {
-    if (!selectedAccount) {
-      toast.error('No account selected');
+    if (state.accounts.length === 0) {
+      toast.error('Tidak ada data untuk diekspor');
       return;
     }
 
+    setIsSaving(true);
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      
       const saveData = {
-        accounts: [{
-          id: selectedAccount.id,
-          name: selectedAccount.name,
-          transactions: selectedAccount.transactions
-        }]
+        accounts: state.accounts.map(account => ({
+          name: account.name,
+          transactions: account.transactions
+        }))
       };
       
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/save`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(saveData),
       });
       
-      if (!response.ok) {
-        throw new Error(`Server responded with status ${response.status}`);
-      }
-      
-      const contentDisposition = response.headers.get('content-disposition');
-      const filename = contentDisposition 
-        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-        : `transactions_${new Date().toISOString().split('T')[0]}.xlsx`;
+      if (!response.ok) throw new Error(`Error: ${response.status}`);
       
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = filename;
+      a.download = `akuntansi_${new Date().toISOString().split('T')[0]}.xlsx`;
       document.body.appendChild(a);
       a.click();
       
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
-      toast.success('Transactions exported to Excel');
-      
+      toast.success('Data berhasil diekspor');
     } catch (error) {
-      console.error('Export failed:', error);
-      toast.error(`Failed to export: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Export error:', error);
+      toast.error('Gagal mengekspor data');
     } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      setIsSaving(false);
     }
   };
 
-  // ... rest of the component code ...
+  // Auto-select first account if none selected but accounts exist
+  if (!selectedAccount && state.accounts.length > 0) {
+    dispatch({
+      type: 'SET_CURRENT_ACCOUNT',
+      payload: state.accounts[0].name
+    });
+    return null;
+  }
 
   return (
-    <div className="p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">{selectedAccount.name}</h1>
-        <div className="flex space-x-2">
+    <div className="p-4 max-w-6xl mx-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="w-full sm:w-auto">
+          <AccountSelector 
+            accounts={state.accounts}
+            selectedAccountId={state.currentAccount}
+            onSelect={handleSelectAccount}
+            onAddAccount={handleAddAccount}
+          />
+        </div>
+        <div className="flex gap-2 w-full sm:w-auto">
           <button
+            type="button"
             onClick={handleExportToExcel}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            disabled={isSaving || state.accounts.length === 0}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg className="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Export to Excel
+            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+            {isSaving ? 'Menyimpan...' : 'Ekspor ke Excel'}
           </button>
         </div>
       </div>
-      <TransactionEditor
-        transactions={selectedAccount.transactions}
-        onSave={handleSaveTransactions}
-        accountName={selectedAccount.name}
-      />
+      {selectedAccount ? (
+        <h1 className="text-2xl font-bold text-gray-900">Transaksi - {selectedAccount.name}</h1>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <p className="text-gray-500 mb-4">Belum ada akun yang dibuat</p>
+          <button
+            type="button"
+            onClick={handleAddAccount}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Tambah Akun Baru
+          </button>
+        </div>
+      )}
+      {selectedAccount ? (
+        <div className="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
+        <div className="px-4 py-5 sm:px-6
+          ">
+          <TransactionEditor 
+            accountName={selectedAccount.name}
+            transactions={selectedAccount.transactions} 
+            onSave={handleSaveTransactions}
+          />
+        </div>
+      </div>
+      ) : null}
     </div>
   );
 };

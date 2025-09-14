@@ -31,6 +31,8 @@
   - [x] Auto-calculate running balances
   - [x] Inline editing for all fields
   - [x] Date picker for transaction dates
+  - [x] Edit existing transactions
+  - [x] Improved form layout and styling
 - [x] Implement state management
   - [x] Track multiple accounts
   - [x] Handle transaction CRUD operations
@@ -113,26 +115,22 @@
 - [ ] Tax calculation and reporting
 - [ ] Budget tracking and alerts
 
-## Testing & Validation
-- [ ] Unit tests for backend API endpoints
-  - [x] Template download endpoint
-  - [ ] File upload endpoint
-  - [ ] Data processing logic
-- [ ] Integration tests for file upload/download
-- [ ] End-to-end tests for complete workflow
-- [ ] Browser compatibility testing
+## Testing
+- [ ] Unit tests for utility functions
+- [ ] Integration tests for API endpoints
+- [ ] End-to-end tests for critical user flows
+- [ ] Cross-browser testing
+- [ ] Test transaction editing functionality
+- [ ] Test multi-account operations
 
 ## Documentation
-- [ ] Update API documentation
-- [ ] Add error code reference
-- [ ] Document template formatories
-- [ ] Update documentation for new features
-  - [ ] Test Excel generation with dynamic columns
-  - [ ] Test backward compatibility with old format
+- [ ] Update README with new features
 - [ ] Add JSDoc comments
   - [ ] Component props and state
   - [ ] Utility functions
   - [ ] Custom hooks
+- [ ] Document transaction editing workflow
+- [ ] Document multi-account data structure
 
 ## UI/UX Improvements
 - [ ] Add validation for category names
