@@ -52,7 +52,8 @@
 - [x] Reports Page
   - [x] Financial summary cards
   - [x] Charts for income/expenses
-  - [] Export to PDF/Excel
+  - [x] Export to PDF/Excel
+  - [x] Account switching functionality
   - [] Date range filtering
 
 ## Recent Improvements
@@ -120,6 +121,8 @@
 - [ ] Integration tests for API endpoints
 - [ ] End-to-end tests for critical user flows
 - [ ] Cross-browser testing
+- [ ] Test account switching in reports
+- [ ] Test report generation with different account data
 - [ ] Test transaction editing functionality
 - [ ] Test multi-account operations
 
@@ -138,6 +141,8 @@
 - [ ] Add tooltips for category management
 - [ ] Improve mobile responsiveness for transaction editor
 - [ ] Add visual indicators for category totals
+- [ ] Add loading states for report generation
+- [ ] Add error boundaries for report components
 
 ## Future Enhancements
 - [ ] Add category management interface

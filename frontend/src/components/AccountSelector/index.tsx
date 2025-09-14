@@ -6,7 +6,7 @@ interface AccountSelectorProps {
   accounts: AccountData[];
   selectedAccountId: string | null;
   onSelect: (accountName: string) => void;
-  onAddAccount: () => void;
+  onAddAccount?: () => void;
   className?: string;
 }
 
@@ -101,18 +101,19 @@ export const AccountSelector = ({
                 </div>
               </div>
             ))}
-            <button
-              type="button"
-              className="flex items-center w-full px-4 py-2 text-sm text-left text-blue-600 hover:bg-blue-50"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddAccount();
-                setIsOpen(false);
-              }}
-            >
-              <PlusIcon className="w-4 h-4 mr-2" />
-              Tambah Akun Baru
-            </button>
+            {onAddAccount && (
+              <div 
+                className="flex items-center px-4 py-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-100"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddAccount();
+                  setIsOpen(false);
+                }}
+              >
+                <PlusIcon className="w-4 h-4 mr-2" />
+                Tambah Akun Baru
+              </div>
+            )}
           </div>
         </div>
       )}

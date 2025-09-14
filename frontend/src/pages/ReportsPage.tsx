@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useAppContext } from '@/contexts/AppContext';
+import { AccountSelector } from '@/components/AccountSelector';
+import type { TransactionItem, AccountData } from '@/types';
 
 interface ReportData {
   balance_sheet: {
@@ -38,13 +40,20 @@ const formatCurrency = (amount: number): string => {
 
 const ReportsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { state } = useAppContext();
+  const { state, dispatch } = useAppContext();
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const [reports, setReports] = useState<ReportData | null>(null);
 
-  const reports = useMemo<ReportData | null>(() => {
-    try {
-      if (state.accounts.length === 0) {
-        return null;
-      }
+  // Get the currently selected account data
+  const currentAccountData = useMemo<AccountData | null>(() => {
+    if (!selectedAccount) return null;
+    return state.accounts.find(acc => acc.name === selectedAccount) || null;
+  }, [selectedAccount, state.accounts]);
+
+  // Generate reports when the selected account changes
+  useEffect(() => {
+    const generateReports = (account: AccountData | null): ReportData | null => {
+      if (!account) return null;
 
       const reportsData: ReportData = {
         balance_sheet: {
@@ -65,35 +74,59 @@ const ReportsPage: React.FC = () => {
         }
       };
 
-      // Process transactions from all accounts
-      state.accounts.forEach(account => {
-        account.transactions.forEach(transaction => {
-          // Process income (penerimaan)
-          Object.entries(transaction.penerimaan).forEach(([category, amount]) => {
-            const value = typeof amount === 'number' ? amount : 0;
-            reportsData.income_statement.income[category] = 
-              (reportsData.income_statement.income[category] || 0) + value;
-            reportsData.income_statement.net_income += value;
-          });
+      // Process transactions for the current account
+      account.transactions.forEach((transaction: TransactionItem) => {
+        // Process income (penerimaan)
+        Object.entries(transaction.penerimaan).forEach(([category, amount]) => {
+          const value = typeof amount === 'number' ? amount : 0;
+          reportsData.income_statement.income[category] = 
+            (reportsData.income_statement.income[category] || 0) + value;
+          reportsData.income_statement.net_income += value;
+        });
 
-          // Process expenses (pengeluaran)
-          Object.entries(transaction.pengeluaran).forEach(([category, amount]) => {
-            const value = typeof amount === 'number' ? amount : 0;
-            reportsData.income_statement.expenses[category] = 
-              (reportsData.income_statement.expenses[category] || 0) + value;
-            reportsData.income_statement.net_income -= value;
-          });
+        // Process expenses (pengeluaran)
+        Object.entries(transaction.pengeluaran).forEach(([category, amount]) => {
+          const value = typeof amount === 'number' ? amount : 0;
+          reportsData.income_statement.expenses[category] = 
+            (reportsData.income_statement.expenses[category] || 0) + value;
+          reportsData.income_statement.net_income -= value;
         });
       });
 
       return reportsData;
-    } catch (err) {
-      console.error('Error generating reports:', err);
-      return null;
-    }
-  }, [state.accounts]);
+    };
 
-  const error = state.accounts.length === 0 ? 'Tidak ada data transaksi yang tersedia. Silakan unggah file terlebih dahulu.' : null;
+    setReports(generateReports(currentAccountData));
+  }, [currentAccountData]);
+
+  // Set initial selected account
+  useEffect(() => {
+    if (state.currentAccount) {
+      setSelectedAccount(state.currentAccount);
+    } else if (state.accounts.length > 0) {
+      setSelectedAccount(state.accounts[0].name);
+    }
+  }, [state.currentAccount, state.accounts]);
+
+  const handleAccountSelect = useCallback((accountName: string) => {
+    setSelectedAccount(accountName);
+    if (dispatch) {
+      dispatch({
+        type: 'SET_CURRENT_ACCOUNT',
+        payload: accountName
+      });
+    }
+  }, [dispatch]);
+
+  const error = useMemo(() => {
+    if (state.accounts.length === 0) {
+      return 'Tidak ada data transaksi yang tersedia. Silakan unggah file terlebih dahulu.';
+    }
+    if (!selectedAccount) {
+      return 'Silakan pilih akun untuk melihat laporan.';
+    }
+    return null;
+  }, [state.accounts.length, selectedAccount]);
 
   const incomeData: ChartDataPoint[] = useMemo(() => {
     if (!reports) return [];
@@ -180,15 +213,29 @@ const ReportsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Laporan Keuangan</h1>
-          <button
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <ArrowLeftIcon className="-ml-1 mr-2 h-5 w-5 text-gray-500" />
-            Kembali
-          </button>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div className="w-full sm:w-auto">
+            <h1 className="text-2xl font-bold text-gray-900">Laporan Keuangan</h1>
+            {selectedAccount && (
+              <p className="text-sm text-gray-500 mt-1">Akun: {selectedAccount}</p>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <div className="w-full sm:w-64">
+              <AccountSelector 
+                accounts={state.accounts}
+                selectedAccountId={selectedAccount}
+                onSelect={handleAccountSelect}
+              />
+            </div>
+            <button
+              onClick={() => navigate(-1)}
+              className="inline-flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <ArrowLeftIcon className="-ml-1 mr-2 h-5 w-5 text-gray-500" />
+              Kembali
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-6">
