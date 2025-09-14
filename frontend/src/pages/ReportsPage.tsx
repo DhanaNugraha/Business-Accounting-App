@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useAppContext } from '@/contexts/AppContext';
 import { AccountSelector } from '@/components/AccountSelector';
@@ -289,50 +289,6 @@ const ReportsPage: React.FC = () => {
 
     return (
       <div className="space-y-6">
-        {/* Laporan Laba Rugi with Detailed Breakdown */}
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-          <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">Laporan Laba Rugi</h3>
-            <p className="mt-1 max-w-2xl text-sm text-gray-500">Ringkasan pendapatan dan pengeluaran</p>
-          </div>
-          <div className="px-4 py-5 sm:p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <h4 className="text-md font-medium text-gray-900 mb-4">Pendapatan</h4>
-                <div className="space-y-2">
-                  {Object.entries(reports.income_statement.income).map(([category, amount]) => (
-                    <div key={`income-${category}`} className="flex justify-between">
-                      <span className="text-gray-600">{category}</span>
-                      <span className="font-medium">{formatCurrency(amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h4 className="text-md font-medium text-gray-900 mb-4">Pengeluaran</h4>
-                <div className="space-y-2">
-                  {Object.entries(reports.income_statement.expenses).map(([category, amount]) => (
-                    <div key={`expense-${category}`} className="flex justify-between">
-                      <span className="text-gray-600">{category}</span>
-                      <span className="font-medium text-red-600">- {formatCurrency(amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="mt-8 pt-4 border-t border-gray-200">
-              <div className="flex justify-between">
-                <span className="text-lg font-medium">Laba/Rugi Bersih</span>
-                <span className={`text-lg font-bold ${
-                  reports.income_statement.net_income >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {formatCurrency(reports.income_statement.net_income)}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Main Chart */}
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
@@ -344,7 +300,7 @@ const ReportsPage: React.FC = () => {
             <div className="h-96">
               <ResponsiveContainer width="100%" height={400}>
                 {activeTab === 'running' ? (
-                  <BarChart 
+                  <LineChart 
                     data={data}
                     margin={{
                       top: 20,
@@ -380,15 +336,19 @@ const ReportsPage: React.FC = () => {
                       }}
                     />
                     <Legend />
-                    <Bar 
+                    <Line 
+                      type="linear"
                       dataKey="runningBalance" 
                       name="Saldo Berjalan" 
-                      fill="#3b82f6" 
-                      radius={[4, 4, 0, 0]}
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      dot={data.length <= 12}
+                      activeDot={{ r: 6 }}
+                      connectNulls={true}
                     />
-                  </BarChart>
+                  </LineChart>
                 ) : (
-                  <BarChart 
+                  <LineChart 
                     data={data}
                     margin={{
                       top: 20,
@@ -424,19 +384,27 @@ const ReportsPage: React.FC = () => {
                       }}
                     />
                     <Legend />
-                    <Bar 
+                    <Line 
+                      type="linear"
                       dataKey="income" 
                       name="Pendapatan" 
-                      fill="#10b981" 
-                      radius={[4, 4, 0, 0]}
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      dot={data.length <= 12}
+                      activeDot={{ r: 6 }}
+                      connectNulls={true}
                     />
-                    <Bar 
+                    <Line 
+                      type="linear"
                       dataKey="expense" 
                       name="Pengeluaran" 
-                      fill="#ef4444" 
-                      radius={[4, 4, 0, 0]}
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                      dot={data.length <= 12}
+                      activeDot={{ r: 6 }}
+                      connectNulls={true}
                     />
-                  </BarChart>
+                  </LineChart>
                 )}
               </ResponsiveContainer>
             </div>
