@@ -88,9 +88,11 @@
 
 ## In Progress
 - [ ] Add data validation for transaction entries
-  - [ ] Validate date formats
-  - [ ] Ensure numeric fields contain valid numbers
-  - [ ] Add required field validation
+  - [x] Validate date formats
+  - [x] Ensure numeric fields contain valid numbers
+  - [x] Add required field validation
+  - [ ] Add input masking for amount fields
+  - [ ] Add client-side validation feedback
 
 ## Pending Features
 - [ ] Add transaction search and filtering
@@ -135,6 +137,13 @@
 ## UI/UX Improvements
 - [x] Add validation for category names
 - [x] Implement duplicate category prevention
+- [x] Enhanced Transaction Editor UX
+  - [x] Smooth scrolling to form when adding/editing
+  - [x] Visual feedback for active/edited transactions
+  - [x] Improved amount input field with better feedback
+  - [x] Better form visibility and layout
+  - [x] Enhanced error state visualization
+  - [x] Responsive design improvements
 - [x] Improve form layout with two-row design
 - [x] Add currency formatting for amount input
 - [x] Fix form field alignment and spacing
