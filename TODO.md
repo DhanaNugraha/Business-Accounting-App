@@ -28,11 +28,13 @@
 - [x] Create TransactionEditor component
   - [x] Editable data grid for transactions
   - [x] Add/remove transaction rows
-  - [x] Auto-calculate running balances
+  - [x] Auto-calculate running balances (Saldo Berjalan)
   - [x] Inline editing for all fields
   - [x] Date picker for transaction dates
   - [x] Edit existing transactions
   - [x] Improved form layout and styling
+  - [x] Add "Saldo Berjalan" column
+  - [x] Implement navigation to reports page
 - [x] Implement state management
   - [x] Track multiple accounts
   - [x] Handle transaction CRUD operations
@@ -61,6 +63,12 @@
 
 
 ## Recent Improvements
+- [x] Added "Saldo Berjalan" (Running Balance) feature
+  - [x] Backend calculation of running balances
+  - [x] Updated Excel template generation
+  - [x] Added column to transaction editor
+  - [x] Implemented proper TypeScript types
+  - [x] Added navigation to reports page
 - [x] Fixed template download functionality
   - [x] Rewrote file handling to prevent race conditions
   - [x] Improved CORS configuration for file downloads
@@ -87,12 +95,11 @@
   - [x] Added proper state management for editing
 
 ## In Progress
-- [ ] Add data validation for transaction entries
+- [X] Add data validation for transaction entries
   - [x] Validate date formats
   - [x] Ensure numeric fields contain valid numbers
   - [x] Add required field validation
-  - [ ] Add input masking for amount fields
-  - [ ] Add client-side validation feedback
+  - [X] Add client-side validation feedback
 
 ## Pending Features
 - [ ] Add transaction search and filtering
@@ -109,9 +116,8 @@
   - [X] Visualize spending/income trends (line chart)
 
 - [ ] UI/UX Improvements
-  - [ ] Add loading skeletons for better perceived performance
-  - [ ] Improve form validation feedback
-  - [ ] Add success/error toast notifications
+  - [X] Improve form validation feedback
+  - [X] Add success/error toast notifications
   - [ ] Enhance mobile responsiveness
   - [ ] Implement dark mode
 
@@ -152,17 +158,13 @@
 - [x] Add visual feedback for form validation
 - [ ] Add tooltips for category management
 - [ ] Improve mobile responsiveness for transaction editor
-- [ ] Add visual indicators for category totals
-- [ ] Add loading states for report generation
 - [ ] Add error boundaries for report components
 
 
 ## Future Enhancements
-- [ ] Add category management interface
 - [ ] Implement category filtering and grouping
 - [ ] Add support for category-specific reporting
-- [ ] Implement data validation rules per category
-- [ ] Add bulk category operations
+- [X] Implement data validation rules per category
 - [ ] Frontend component tests
   - [ ] Transaction editor functionality
   - [ ] Account switching
@@ -181,7 +183,6 @@
 - [ ] Recurring transactions
 - [ ] Receipt image upload and attachment
 - [ ] Multi-currency support
-- [ ] Tax calculation and reporting
 - [ ] Budget tracking and alerts
 
 

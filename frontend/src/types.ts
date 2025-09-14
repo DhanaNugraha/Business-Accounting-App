@@ -5,6 +5,7 @@ export interface TransactionItem {
   penerimaan: Record<string, number>;
   pengeluaran: Record<string, number>;
   saldo: number;
+  saldo_berjalan?: number;
 }
 
 export interface AccountData {

@@ -1,18 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TransactionItem } from '@/types';
-import { 
-  TrashIcon, 
-  PlusIcon, 
-  XMarkIcon, 
-  PencilIcon, 
-  ArrowDownTrayIcon 
-} from '@heroicons/react/24/outline';
+import { TrashIcon, PencilIcon, PlusIcon, ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
 import { ConfirmationDialog } from '@/components/common/ConfirmationDialog';
 import { 
   getNumberValidationError, 
   getDateValidationError
 } from '@/utils/validators';
-import { toast } from 'react-hot-toast';
 
 interface SimpleFormData {
   id?: string;
@@ -30,8 +25,23 @@ interface TransactionEditorProps {
 }
 
 export const TransactionEditor = ({ transactions, onSave, accountName }: TransactionEditorProps) => {
+  const navigate = useNavigate();
   const [isAdding, setIsAdding] = useState(false);
-  const [editedTransactions, setEditedTransactions] = useState<TransactionItem[]>(transactions);
+  // Calculate running balance for transactions
+  const transactionsWithRunningBalance = useMemo(() => {
+    let runningBalance = 0;
+    return transactions.map(tx => {
+      const penerimaan = Object.values(tx.penerimaan || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
+      const pengeluaran = Object.values(tx.pengeluaran || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
+      runningBalance += (penerimaan - pengeluaran);
+      return {
+        ...tx,
+        saldo_berjalan: runningBalance
+      };
+    });
+  }, [transactions]);
+
+  const [editedTransactions, setEditedTransactions] = useState<TransactionItem[]>(transactionsWithRunningBalance);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<{isOpen: boolean, id: string | null}>({ 
@@ -60,7 +70,17 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
 
   // Update local state when transactions prop changes
   useEffect(() => {
-    setEditedTransactions(transactions);
+    let runningBalance = 0;
+    const updatedTransactions = transactions.map(tx => {
+      const penerimaan = Object.values(tx.penerimaan || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
+      const pengeluaran = Object.values(tx.pengeluaran || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
+      runningBalance += (penerimaan - pengeluaran);
+      return {
+        ...tx,
+        saldo_berjalan: runningBalance
+      };
+    });
+    setEditedTransactions(updatedTransactions);
   }, [transactions]);
 
 
@@ -223,7 +243,8 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
       uraian: simpleForm.uraian,
       penerimaan: {},
       pengeluaran: {},
-      saldo: 0
+      saldo: 0,
+      saldo_berjalan: 0
     };
 
     if (simpleForm.tipe === 'penerimaan') {
@@ -300,6 +321,9 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
             <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
               Jumlah
             </th>
+            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Saldo Berjalan
+            </th>
             <th scope="col" className="relative px-6 py-3">
               <span className="sr-only">Aksi</span>
             </th>
@@ -308,7 +332,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
         <tbody className="bg-white divide-y divide-gray-200">
           {editedTransactions.length === 0 ? (
             <tr>
-              <td colSpan={5} className="px-6 py-8 text-center">
+              <td colSpan={6} className="px-6 py-8 text-center">
                 <div className="flex flex-col items-center justify-center text-gray-400">
                   <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -389,6 +413,11 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                       isPenerimaan ? 'text-green-600' : 'text-red-600'
                     }`}>
                       {isPenerimaan ? '' : '-'}{formatCurrency(amount?.toString() || '0')}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <div className="text-sm font-medium text-gray-900">
+                      {formatCurrency(transaction.saldo_berjalan?.toString() || transaction.saldo?.toString() || '0')}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -722,26 +751,19 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
           <button
             type="button"
             onClick={() => {
-              const exportData = {
-                accounts: [{
-                  name: accountName,
-                  transactions: editedTransactions
-                }]
-              };
-              
-              // Trigger download
-              const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
-              const downloadAnchorNode = document.createElement('a');
-              downloadAnchorNode.setAttribute('href', dataStr);
-              downloadAnchorNode.setAttribute('download', `transaksi-${accountName.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.json`);
-              document.body.appendChild(downloadAnchorNode);
-              downloadAnchorNode.click();
-              downloadAnchorNode.remove();
+              navigate('/reports', { 
+                state: { 
+                  accountData: {
+                    name: accountName,
+                    transactions: editedTransactions
+                  }
+                } 
+              });
             }}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            <ArrowDownTrayIcon className="-ml-1 mr-2 h-4 w-4" />
-            Ekspor Data
+            <ChartBarIcon className="-ml-1 mr-2 h-4 w-4" />
+            Lihat Laporan
           </button>
         </div>
       )}

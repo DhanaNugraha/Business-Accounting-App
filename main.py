@@ -299,16 +299,23 @@ def _process_transactions(
 ) -> List[Dict[str, Any]]:
     """Convert DataFrame rows to transaction dictionaries with dynamic columns."""
     transactions = []
+    running_balance = 0.0
 
     for _, row in df.iterrows():
         try:
+            # Calculate total penerimaan and pengeluaran for this transaction
+            total_penerimaan = 0.0
+            total_pengeluaran = 0.0
+            
             # Process Penerimaan
             penerimaan = {}
             for col in penerimaan_cols:
                 value = row[col]
                 if pd.notna(value) and value != "" and float(value) != 0:
                     category = col.replace("Penerimaan_", "")
-                    penerimaan[category] = float(value)
+                    amount = float(value)
+                    penerimaan[category] = amount
+                    total_penerimaan += amount
 
             # Process Pengeluaran
             pengeluaran = {}
@@ -316,8 +323,16 @@ def _process_transactions(
                 value = row[col]
                 if pd.notna(value) and value != "" and float(value) != 0:
                     category = col.replace("Pengeluaran_", "")
-                    pengeluaran[category] = float(value)
+                    amount = float(value)
+                    pengeluaran[category] = amount
+                    total_pengeluaran += amount
 
+            # Calculate running balance
+            running_balance = running_balance + total_penerimaan - total_pengeluaran
+            
+            # Get saldo from the row if it exists, otherwise use running_balance
+            saldo = float(row["Saldo"]) if "Saldo" in row and pd.notna(row["Saldo"]) else running_balance
+            
             # Create transaction
             transaction = {
                 "tanggal": row["Tanggal"].strftime("%Y-%m-%d")
@@ -326,7 +341,8 @@ def _process_transactions(
                 "uraian": str(row["Uraian"]) if pd.notna(row["Uraian"]) else "",
                 "penerimaan": penerimaan,
                 "pengeluaran": pengeluaran,
-                "saldo": float(row["Saldo"]) if pd.notna(row["Saldo"]) else 0.0,
+                "saldo": saldo,
+                "saldo_berjalan": running_balance  # Add running balance
             }
             transactions.append(transaction)
 
@@ -389,6 +405,7 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
                         "Tanggal": getattr(tx, "tanggal", ""),
                         "Uraian": getattr(tx, "uraian", ""),
                         "Saldo": getattr(tx, "saldo", 0.0),
+                        "Saldo Berjalan": getattr(tx, "saldo_berjalan", getattr(tx, "saldo", 0.0)),
                     }
 
                     # Add penerimaan columns
@@ -413,7 +430,7 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
                 # Create DataFrame
                 df = pd.DataFrame(rows)
 
-                # Reorder columns: Tanggal, Uraian, Penerimaan_*, Pengeluaran_*, Saldo
+                # Reorder columns: Tanggal, Uraian, Penerimaan_*, Pengeluaran_*, Saldo, Saldo Berjalan
                 columns_order = ["Tanggal", "Uraian"]
                 columns_order.extend(
                     sorted([col for col in df.columns if col.startswith("Penerimaan_")])
@@ -423,6 +440,8 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
                 )
                 if "Saldo" in df.columns:
                     columns_order.append("Saldo")
+                if "Saldo Berjalan" in df.columns:
+                    columns_order.append("Saldo Berjalan")
 
                 # Keep only columns that exist in the DataFrame
                 columns_order = [col for col in columns_order if col in df.columns]
@@ -480,6 +499,8 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
                         ws.column_dimensions[col_letter].width = 40
                     elif column == 'Tanggal':
                         ws.column_dimensions[col_letter].width = 12
+                    elif column == 'Saldo Berjalan':
+                        ws.column_dimensions[col_letter].width = 15
                     else:
                         ws.column_dimensions[col_letter].width = 18
                 

@@ -116,8 +116,9 @@ def create_template(output_path: str = "template.xlsx",
                 for col in sorted(all_pengeluaran):
                     row[f"Pengeluaran_{col}"] = tx["Pengeluaran"].get(col, 0)
                 
-                # Add Saldo (balance)
+                # Add Saldo (balance) and Saldo Berjalan (running balance)
                 row["Saldo"] = tx["Saldo"]
+                row["Saldo Berjalan"] = tx["Saldo"]  # Initially same as Saldo
                 
                 rows.append(row)
             
@@ -127,7 +128,7 @@ def create_template(output_path: str = "template.xlsx",
                 columns = ["Tanggal", "Uraian"]
                 columns.extend([f"Penerimaan_{col}" for col in sorted(all_penerimaan)])
                 columns.extend([f"Pengeluaran_{col}" for col in sorted(all_pengeluaran)])
-                columns.append("Saldo")
+                columns.extend(["Saldo", "Saldo Berjalan"])
                 df = pd.DataFrame(columns=columns)
             else:
                 df = pd.DataFrame(rows)
@@ -136,7 +137,7 @@ def create_template(output_path: str = "template.xlsx",
             columns_order = ["Tanggal", "Uraian"]
             columns_order.extend(sorted([col for col in df.columns if col.startswith("Penerimaan_")]))
             columns_order.extend(sorted([col for col in df.columns if col.startswith("Pengeluaran_")]))
-            columns_order.append("Saldo")
+            columns_order.extend(["Saldo", "Saldo Berjalan"])
             
             # Reorder and filter columns
             df = df.reindex(columns=[col for col in columns_order if col in df.columns])
@@ -157,6 +158,8 @@ def create_template(output_path: str = "template.xlsx",
                     width = 40  # Wider for descriptions
                 elif column == 'Tanggal':
                     width = 12
+                elif column == 'Saldo Berjalan':
+                    width = 15
                 else:
                     width = 18  # Wider for monetary values
                 
