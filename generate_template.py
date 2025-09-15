@@ -35,7 +35,7 @@ def create_template(output_path: str = "template.xlsx",
                 "Uraian": description,
                 "Penerimaan": penerimaan or {},
                 "Pengeluaran": pengeluaran or {},
-                "Saldo": 0  # Will be calculated later
+                "Jumlah": 0  # Will be calculated later
             }
         
         # Sample account data with more realistic transactions
@@ -69,7 +69,7 @@ def create_template(output_path: str = "template.xlsx",
                 income = sum(tx["Penerimaan"].values())
                 expense = sum(tx["Pengeluaran"].values())
                 running_balance += income - expense
-                tx["Saldo"] = running_balance
+                tx["Jumlah"] = running_balance
     else:
         accounts_data = accounts
     
@@ -116,9 +116,9 @@ def create_template(output_path: str = "template.xlsx",
                 for col in sorted(all_pengeluaran):
                     row[f"Pengeluaran_{col}"] = tx["Pengeluaran"].get(col, 0)
                 
-                # Add Saldo (balance) and Saldo Berjalan (running balance)
-                row["Saldo"] = tx["Saldo"]
-                row["Saldo Berjalan"] = tx["Saldo"]  # Initially same as Saldo
+                # Add Jumlah (balance) and Saldo Berjalan (running balance)
+                row["Jumlah"] = tx["Jumlah"]
+                row["Saldo Berjalan"] = tx["Jumlah"]  # Initially same as Jumlah
                 
                 rows.append(row)
             
@@ -128,7 +128,7 @@ def create_template(output_path: str = "template.xlsx",
                 columns = ["Tanggal", "Uraian"]
                 columns.extend([f"Penerimaan_{col}" for col in sorted(all_penerimaan)])
                 columns.extend([f"Pengeluaran_{col}" for col in sorted(all_pengeluaran)])
-                columns.extend(["Saldo", "Saldo Berjalan"])
+                columns.extend(["Jumlah", "Saldo Berjalan"])
                 df = pd.DataFrame(columns=columns)
             else:
                 df = pd.DataFrame(rows)
@@ -137,7 +137,7 @@ def create_template(output_path: str = "template.xlsx",
             columns_order = ["Tanggal", "Uraian"]
             columns_order.extend(sorted([col for col in df.columns if col.startswith("Penerimaan_")]))
             columns_order.extend(sorted([col for col in df.columns if col.startswith("Pengeluaran_")]))
-            columns_order.extend(["Saldo", "Saldo Berjalan"])
+            columns_order.extend(["Jumlah", "Saldo Berjalan"])
             
             # Reorder and filter columns
             df = df.reindex(columns=[col for col in columns_order if col in df.columns])
@@ -158,7 +158,7 @@ def create_template(output_path: str = "template.xlsx",
                     width = 40  # Wider for descriptions
                 elif column == 'Tanggal':
                     width = 12
-                elif column == 'Saldo Berjalan':
+                elif column == 'Jumlah':
                     width = 15
                 else:
                     width = 18  # Wider for monetary values

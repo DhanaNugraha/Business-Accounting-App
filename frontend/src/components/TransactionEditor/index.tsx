@@ -1,13 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TransactionItem } from '@/types';
+import type { TransactionItem } from '@/types';
 import { TrashIcon, PencilIcon, PlusIcon, ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { ConfirmationDialog } from '@/components/common/ConfirmationDialog';
-import { 
-  getNumberValidationError, 
-  getDateValidationError
-} from '@/utils/validators';
+import { getDateValidationError } from '@/utils/validators';
 
 interface SimpleFormData {
   id?: string;
@@ -33,27 +30,29 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     return transactions.map(tx => {
       const penerimaan = Object.values(tx.penerimaan || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
       const pengeluaran = Object.values(tx.pengeluaran || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
-      runningBalance += (penerimaan - pengeluaran);
+      const jumlah = penerimaan - pengeluaran;
+      runningBalance += jumlah;
       return {
         ...tx,
+        jumlah,
         saldo_berjalan: runningBalance
       };
     });
   }, [transactions]);
 
   const [editedTransactions, setEditedTransactions] = useState<TransactionItem[]>(transactionsWithRunningBalance);
+  const [simpleForm, setSimpleForm] = useState<SimpleFormData>({
+    tanggal: new Date().toISOString().split('T')[0],
+    tipe: 'penerimaan',
+    kategori: '',
+    uraian: '',
+    jumlah: '0'
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<{isOpen: boolean, id: string | null}>({ 
     isOpen: false, 
     id: null 
-  });
-  const [simpleForm, setSimpleForm] = useState<SimpleFormData>({
-    tanggal: new Date().toISOString().split('T')[0],
-    uraian: '',
-    jumlah: '',
-    tipe: 'penerimaan',
-    kategori: ''
   });
 
   // Extract unique categories from existing transactions
@@ -72,11 +71,13 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
   useEffect(() => {
     let runningBalance = 0;
     const updatedTransactions = transactions.map(tx => {
-      const penerimaan = Object.values(tx.penerimaan || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
-      const pengeluaran = Object.values(tx.pengeluaran || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
-      runningBalance += (penerimaan - pengeluaran);
+      const penerimaan = Object.values(tx.penerimaan || {}).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
+      const pengeluaran = Object.values(tx.pengeluaran || {}).reduce((sum: number, val) => sum + (Number(val) || 0), 0);
+      const jumlah = penerimaan - pengeluaran;
+      runningBalance += jumlah;
       return {
         ...tx,
+        jumlah,
         saldo_berjalan: runningBalance
       };
     });
@@ -85,14 +86,14 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
 
 
   // Handles opening the delete confirmation dialog
-  const confirmDeleteClick = useCallback((id: string) => {
+  const confirmDeleteClick = useCallback((id: string): void => {
     setDeleteConfirm({ isOpen: true, id });
   }, []);
 
   const formRef = useRef<HTMLDivElement>(null);
 
   const handleEdit = useCallback((id: string) => {
-    const transaction = editedTransactions.find(tx => tx.id === id);
+    const transaction = editedTransactions.find(tx => tx.id === id) as TransactionItem | undefined;
     if (transaction) {
       // Get the first category from either penerimaan or pengeluaran
       const firstCategory = Object.keys(transaction.penerimaan || {})[0] || 
@@ -205,32 +206,29 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
   }, []);
 
 
-  const handleSaveTransaction = useCallback((e: React.FormEvent) => {
+  const handleSaveTransaction = useCallback((e: React.FormEvent): void => {
     e.preventDefault();
     
     // Clear previous errors
     setErrors({});
     
-    // Validate required fields
     const newErrors: Record<string, string> = {};
     
-    // Validate date
-    const dateError = getDateValidationError(simpleForm.tanggal);
-    if (dateError) newErrors.tanggal = dateError;
-    
-    // Validate description
-    if (!simpleForm.uraian.trim()) {
-      newErrors.uraian = 'Uraian tidak boleh kosong';
+    if (!simpleForm.tanggal) {
+      newErrors.tanggal = 'Tanggal harus diisi';
     }
     
-    // Validate category
-    if (!simpleForm.kategori.trim()) {
-      newErrors.kategori = 'Kategori tidak boleh kosong';
+    if (!simpleForm.kategori) {
+      newErrors.kategori = 'Kategori harus dipilih';
     }
     
-    // Validate amount
-    const amountError = getNumberValidationError(simpleForm.jumlah, 'Jumlah');
-    if (amountError) newErrors.jumlah = amountError;
+    if (!simpleForm.uraian) {
+      newErrors.uraian = 'Uraian harus diisi';
+    }
+    
+    if (isNaN(Number(simpleForm.jumlah)) || Number(simpleForm.jumlah) <= 0) {
+      newErrors.jumlah = 'Jumlah harus lebih dari 0';
+    }
     
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -243,7 +241,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
       uraian: simpleForm.uraian,
       penerimaan: {},
       pengeluaran: {},
-      saldo: 0,
+      jumlah: 0,
       saldo_berjalan: 0
     };
 
@@ -255,14 +253,30 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
 
     const penerimaanTotal = Object.values(txData.penerimaan).reduce((sum, val) => sum + (Number(val) || 0), 0);
     const pengeluaranTotal = Object.values(txData.pengeluaran).reduce((sum, val) => sum + (Number(val) || 0), 0);
-    txData.saldo = penerimaanTotal - pengeluaranTotal;
+    txData.jumlah = penerimaanTotal - pengeluaranTotal;
 
     let updated: TransactionItem[];
     if (editingId) {
       // Update existing transaction
-      updated = editedTransactions.map(tx => 
-        tx.id === editingId ? { ...txData, id: editingId } : tx
-      );
+      const updatedTransaction = editedTransactions.find(tx => tx.id === editingId);
+      if (updatedTransaction) {
+        // Calculate jumlah for the new transaction
+        const penerimaanTotal = Object.values(updatedTransaction.penerimaan).reduce(
+          (sum, val) => sum + (Number(val) || 0),
+          0
+        );
+        const pengeluaranTotal = Object.values(updatedTransaction.pengeluaran).reduce(
+          (sum, val) => sum + (Number(val) || 0),
+          0
+        );
+        updatedTransaction.jumlah = penerimaanTotal - pengeluaranTotal;
+
+        updated = editedTransactions.map(tx => 
+          tx.id === editingId ? { ...updatedTransaction, ...txData } : tx
+        );
+      } else {
+        updated = editedTransactions;
+      }
     } else {
       // Add new transaction
       const newTx: TransactionItem = {
@@ -304,7 +318,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
   }, [isAdding, editingId]);
 
   // Render the transaction list
-  const renderTransactionList = () => (
+  const renderTransactionList = (): JSX.Element => (
     <div className="overflow-x-auto bg-white shadow-sm rounded-lg border border-gray-200">
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
@@ -417,7 +431,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <div className="text-sm font-medium text-gray-900">
-                      {formatCurrency(transaction.saldo_berjalan?.toString() || transaction.saldo?.toString() || '0')}
+                      {formatCurrency(transaction.saldo_berjalan?.toString() || '0')}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -450,7 +464,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
   );
 
   // Render the transaction form
-  const renderTransactionForm = () => (
+  const renderTransactionForm = (): JSX.Element => (
     <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
       <div className="flex justify-between items-start mb-6">
         <div>

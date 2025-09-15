@@ -76,7 +76,7 @@ class TransactionItem(BaseModel):
     uraian: str
     penerimaan: Dict[str, float] = {}
     pengeluaran: Dict[str, float] = {}
-    saldo: float
+    jumlah: float
 
     class Config:
         alias_generator = to_camel_case
@@ -267,7 +267,7 @@ async def save_file(data: TemplateData, request: Request):
 def _process_excel_sheets(xls: pd.ExcelFile) -> List[Dict[str, Any]]:
     """Process all sheets in the Excel file and return account data."""
     accounts = []
-    required_columns = ["Tanggal", "Uraian", "Saldo"]
+    required_columns = ["Tanggal", "Uraian", "Jumlah"]
 
     for sheet_name in xls.sheet_names:
         try:
@@ -330,8 +330,8 @@ def _process_transactions(
             # Calculate running balance
             running_balance = running_balance + total_penerimaan - total_pengeluaran
             
-            # Get saldo from the row if it exists, otherwise use running_balance
-            saldo = float(row["Saldo"]) if "Saldo" in row and pd.notna(row["Saldo"]) else running_balance
+            # Get jumlah from the row if it exists, otherwise use running_balance
+            jumlah = float(row["Jumlah"]) if "Jumlah" in row and pd.notna(row["Jumlah"]) else running_balance
             
             # Create transaction
             transaction = {
@@ -341,7 +341,7 @@ def _process_transactions(
                 "uraian": str(row["Uraian"]) if pd.notna(row["Uraian"]) else "",
                 "penerimaan": penerimaan,
                 "pengeluaran": pengeluaran,
-                "saldo": saldo,
+                "jumlah": jumlah,
                 "saldo_berjalan": running_balance  # Add running balance
             }
             transactions.append(transaction)
@@ -400,12 +400,21 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
 
                 # Create a DataFrame with all transactions
                 rows = []
+                running_balance = 0.0
+                
                 for tx in account.transactions or []:
+                    # Calculate total penerimaan and pengeluaran for this transaction
+                    total_penerimaan = sum((tx.penerimaan or {}).values()) if hasattr(tx, 'penerimaan') else 0.0
+                    total_pengeluaran = sum((tx.pengeluaran or {}).values()) if hasattr(tx, 'pengeluaran') else 0.0
+                    
+                    # Calculate running balance
+                    running_balance = running_balance + total_penerimaan - total_pengeluaran
+                    
                     row = {
                         "Tanggal": getattr(tx, "tanggal", ""),
                         "Uraian": getattr(tx, "uraian", ""),
-                        "Saldo": getattr(tx, "saldo", 0.0),
-                        "Saldo Berjalan": getattr(tx, "saldo_berjalan", getattr(tx, "saldo", 0.0)),
+                        "Jumlah": getattr(tx, "jumlah", 0.0),
+                        "Saldo Berjalan": running_balance,  # Use the calculated running balance
                     }
 
                     # Add penerimaan columns
@@ -438,8 +447,8 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
                 columns_order.extend(
                     sorted([col for col in df.columns if col.startswith("Pengeluaran_")])
                 )
-                if "Saldo" in df.columns:
-                    columns_order.append("Saldo")
+                if "Jumlah" in df.columns:
+                    columns_order.append("Jumlah")
                 if "Saldo Berjalan" in df.columns:
                     columns_order.append("Saldo Berjalan")
 

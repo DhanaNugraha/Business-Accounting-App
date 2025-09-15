@@ -28,12 +28,12 @@
 - [x] Create TransactionEditor component
   - [x] Editable data grid for transactions
   - [x] Add/remove transaction rows
-  - [x] Auto-calculate running balances (Saldo Berjalan)
+  - [x] Auto-calculate running balances (saldo_berjalan)
   - [x] Inline editing for all fields
   - [x] Date picker for transaction dates
   - [x] Edit existing transactions
   - [x] Improved form layout and styling
-  - [x] Add "Saldo Berjalan" column
+  - [x] Add "saldo_berjalan" column for running balance display
   - [x] Implement navigation to reports page
 - [x] Implement state management
   - [x] Track multiple accounts
@@ -48,6 +48,8 @@
   - [x] Progress indicators
 - [x] Editor Page
   - [x] Transaction table with inline editing
+  - [x] Renamed 'saldo' to 'jumlah' for transaction amounts
+  - [x] Implemented 'saldo_berjalan' for running balance calculation
   - [x] Add/delete transaction functionality
   - [x] Save changes button
   - [x] Form validation
@@ -120,6 +122,13 @@
   - [X] Add success/error toast notifications
   - [ ] Enhance mobile responsiveness
   - [ ] Implement dark mode
+
+## Recent Changes
+- [x] Renamed transaction amount field from 'saldo' to 'jumlah' across the application
+- [x] Updated all related components and validations
+- [x] Fixed TypeScript type definitions and interfaces
+- [x] Ensured backward compatibility with existing data
+- [x] Updated documentation and comments
 
 ## Testing
 - [ ] Unit tests for utility functions

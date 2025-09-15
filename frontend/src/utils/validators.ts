@@ -71,6 +71,11 @@ export const validateTransaction = (transaction: Omit<TransactionItem, 'id' | 's
   const dateError = getDateValidationError(transaction.tanggal);
   if (dateError) errors.tanggal = dateError;
   
+  // Validate jumlah
+  if (isNaN(Number(transaction.jumlah))) {
+    errors.jumlah = 'Jumlah harus berupa angka';
+  }
+  
   // Validate description
   if (!transaction.uraian?.trim()) {
     errors.uraian = 'Uraian tidak boleh kosong';
@@ -115,14 +120,15 @@ export const validateAccountBalance = (
   for (const tx of transactions) {
     const penerimaan = Object.values(tx.penerimaan || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
     const pengeluaran = Object.values(tx.pengeluaran || {}).reduce((sum, val) => sum + (Number(val) || 0), 0);
-    calculatedBalance += (penerimaan - pengeluaran);
+    const jumlah = penerimaan - pengeluaran;
+    calculatedBalance += jumlah;
     
     // Check if balance would go negative
     if (calculatedBalance < 0) {
       return {
         isValid: false,
         currentBalance: calculatedBalance,
-        expectedBalance: tx.saldo || 0
+        expectedBalance: tx.jumlah || 0
       };
     }
   }

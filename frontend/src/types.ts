@@ -4,7 +4,7 @@ export interface TransactionItem {
   uraian: string;
   penerimaan: Record<string, number>;
   pengeluaran: Record<string, number>;
-  saldo: number;
+  jumlah: number;
   saldo_berjalan?: number;
 }
 

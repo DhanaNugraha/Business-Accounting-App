@@ -48,7 +48,17 @@ interface ChartDataPoint {
   value: number;
 }
 
-const formatCurrency = (amount: number): string => {
+const formatCurrency = (amount: number, shortFormat: boolean = false): string => {
+  if (shortFormat) {
+    if (amount >= 1000000000) {
+      return `Rp${(amount / 1000000000).toFixed(1)} M`;
+    } else if (amount >= 1000000) {
+      return `Rp${(amount / 1000000).toFixed(1)} jt`;
+    } else if (amount >= 1000) {
+      return `Rp${(amount / 1000).toFixed(0)} rb`;
+    }
+    return `Rp${amount}`;
+  }
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
@@ -250,17 +260,13 @@ const ReportsPage: React.FC = () => {
               <XAxis dataKey="name" tick={{ fontSize: 12 }} tickMargin={8} />
               <YAxis
                 width={100}
-                tickFormatter={(value) => {
-                  if (value >= 1000000) return `${(value / 1000000).toFixed(1)} Jt`;
-                  if (value >= 1000) return `${(value / 1000).toFixed(0)} Rb`;
-                  return value.toString();
-                }}
+                tickFormatter={(value) => formatCurrency(value, true)}
                 tick={{ fontSize: 12 }}
                 tickMargin={8}
                 padding={{ top: 10, bottom: 10 }}
               />
               <Tooltip
-                formatter={(value) => formatCurrency(Number(value))}
+                formatter={(value) => formatCurrency(Number(value), true)}
                 contentStyle={{
                   backgroundColor: '#ffffff',
                   border: '1px solid #e5e7eb',
@@ -316,17 +322,13 @@ const ReportsPage: React.FC = () => {
                       tickMargin={10}
                     />
                     <YAxis 
-                      tickFormatter={(value) => {
-                        if (value >= 1000000) return `${(value / 1000000).toFixed(1)}jt`;
-                        if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
-                        return value.toString();
-                      }}
+                      tickFormatter={(value) => formatCurrency(value, true)}
                       tick={{ fontSize: 12 }}
                       width={80}
                       tickMargin={5}
                     />
                     <Tooltip 
-                      formatter={(value) => formatCurrency(Number(value))}
+                      formatter={(value) => formatCurrency(Number(value), true)}
                       contentStyle={{
                         backgroundColor: '#ffffff',
                         border: '1px solid #e5e7eb',
@@ -364,17 +366,13 @@ const ReportsPage: React.FC = () => {
                       tickMargin={10}
                     />
                     <YAxis 
-                      tickFormatter={(value) => {
-                        if (value >= 1000000) return `${(value / 1000000).toFixed(1)}jt`;
-                        if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
-                        return value.toString();
-                      }}
+                      tickFormatter={(value) => formatCurrency(value, true)}
                       tick={{ fontSize: 12 }}
                       width={80}
                       tickMargin={5}
                     />
                     <Tooltip 
-                      formatter={(value) => formatCurrency(Number(value))}
+                      formatter={(value) => formatCurrency(Number(value), true)}
                       contentStyle={{
                         backgroundColor: '#ffffff',
                         border: '1px solid #e5e7eb',

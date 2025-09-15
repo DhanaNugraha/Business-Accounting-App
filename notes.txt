@@ -42,4 +42,14 @@ backup? saving?
 
 find transaction and filtering
 
+bikin tabel banyak 
+
+bisa bikin kategori tanpa transaksi
+
+bikin kalau ditutup harus ada promptnya
+
+download report
+
+
+
 

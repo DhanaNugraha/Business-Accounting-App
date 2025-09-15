@@ -57,7 +57,8 @@ const normalizeTransaction = (tx: Partial<TransactionItem>): TransactionItem => 
     uraian: tx.uraian || '',
     penerimaan: {},
     pengeluaran: {},
-    saldo: 0,
+    jumlah: 0,
+    saldo_berjalan: 0
   };
 
   // Handle penerimaan
@@ -78,18 +79,17 @@ const normalizeTransaction = (tx: Partial<TransactionItem>): TransactionItem => 
     });
   }
 
-  // Calculate saldo
+  // Calculate jumlah
   const penerimaanTotal = Object.values(normalizedTx.penerimaan).reduce(
-    (sum: number, val) => sum + (Number(val) || 0), 
+    (sum, val) => sum + (Number(val) || 0),
     0
   );
   const pengeluaranTotal = Object.values(normalizedTx.pengeluaran).reduce(
-    (sum: number, val) => sum + (Number(val) || 0), 
+    (sum, val) => sum + (Number(val) || 0),
     0
   );
-  
-  normalizedTx.saldo = penerimaanTotal - pengeluaranTotal;
-  
+  normalizedTx.jumlah = penerimaanTotal - pengeluaranTotal;
+
   return normalizedTx;
 };
 

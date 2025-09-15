@@ -79,14 +79,14 @@ const UploadPage = () => {
         const defaultPenerimaan = typeof tx.penerimaan === 'string' ? {} : (tx.penerimaan || {});
         const defaultPengeluaran = typeof tx.pengeluaran === 'string' ? {} : (tx.pengeluaran || {});
         
-        // Calculate saldo if not provided
-        let saldo = typeof tx.saldo === 'number' ? tx.saldo : 0;
-        if (saldo === 0) {
+        // Calculate jumlah if not provided
+        let jumlah = typeof tx.jumlah === 'number' ? tx.jumlah : 0;
+        if (jumlah === 0) {
           const penerimaanTotal = Object.values(defaultPenerimaan).reduce((sum: number, val) => 
             sum + (Number(val) || 0), 0);
           const pengeluaranTotal = Object.values(defaultPengeluaran).reduce((sum: number, val) => 
             sum + (Number(val) || 0), 0);
-          saldo = penerimaanTotal - pengeluaranTotal;
+          jumlah = penerimaanTotal - pengeluaranTotal;
         }
         
         return {
@@ -96,7 +96,7 @@ const UploadPage = () => {
           uraian: tx.uraian || '',
           penerimaan: defaultPenerimaan,
           pengeluaran: defaultPengeluaran,
-          saldo: saldo
+          jumlah: jumlah
         };
       }),
       code: account.code,
@@ -178,7 +178,7 @@ const UploadPage = () => {
         // Find column indices
         const dateCol = headers.findIndex(h => h.toLowerCase() === 'tanggal');
         const descCol = headers.findIndex(h => h.toLowerCase() === 'uraian');
-        const balanceCol = headers.findIndex(h => h.toLowerCase() === 'saldo');
+        const jumlahCol = headers.findIndex(h => h.toLowerCase() === 'jumlah');
         
         // Find all Penerimaan_* and Pengeluaran_* columns
         const penerimaanCols = headers
@@ -190,7 +190,7 @@ const UploadPage = () => {
           .filter(i => i !== -1);
         
         // Skip if required columns are missing
-        if (dateCol === -1 || descCol === -1 || balanceCol === -1) {
+        if (dateCol === -1 || descCol === -1 || jumlahCol === -1) {
           console.warn(`Skipping sheet '${sheetName}': Missing required columns`);
           continue;
         }
@@ -239,11 +239,14 @@ const UploadPage = () => {
           }
           
           // Calculate total income and expense
-          const totalPenerimaan = Object.values(penerimaan).reduce((sum, val) => sum + val, 0);
-          const totalPengeluaran = Object.values(pengeluaran).reduce((sum, val) => sum + val, 0);
+          const totalPenerimaan = Object.values(penerimaan).reduce((sum: number, val) => sum + val, 0);
+          const totalPengeluaran = Object.values(pengeluaran).reduce((sum: number, val) => sum + val, 0);
+          
+          // Get transaction amount (use 0 if not a number)
+          const amount = typeof row[jumlahCol] === 'number' ? row[jumlahCol] : 0;
           
           // Get or calculate balance
-          let saldo = getNumberValue(balanceCol);
+          let saldo = getNumberValue(jumlahCol);
           if (saldo === 0) {
             saldo = totalPenerimaan - totalPengeluaran;
             runningBalance += saldo;
@@ -251,14 +254,52 @@ const UploadPage = () => {
             runningBalance = saldo;
           }
           
+          // Helper function to parse Excel date (either serial number or formatted string)
+          const parseExcelDate = (value: any): string => {
+            if (!value && value !== 0) return new Date().toISOString().split('T')[0];
+            
+            // If it's already a date string in YYYY-MM-DD format
+            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+              return value;
+            }
+            
+            // If it's an Excel serial date number (days since 1900-01-01)
+            if (typeof value === 'number' && value > 0) {
+              // Excel's date system starts from 1900-01-01 (with 1900 incorrectly treated as a leap year)
+              // JavaScript's Date uses 1970-01-01 as epoch, so we need to adjust
+              const excelEpoch = new Date('1899-12-30T00:00:00.000Z');
+              const date = new Date(excelEpoch.getTime() + value * 86400000);
+              
+              // Handle Excel's incorrect leap year in 1900
+              if (value >= 60) {
+                date.setDate(date.getDate() - 1);
+              }
+              
+              return date.toISOString().split('T')[0];
+            }
+            
+            // Try parsing as date string (MM/DD/YYYY or DD/MM/YYYY)
+            const parsedDate = new Date(value);
+            if (!isNaN(parsedDate.getTime())) {
+              return parsedDate.toISOString().split('T')[0];
+            }
+            
+            // Fallback to current date
+            return new Date().toISOString().split('T')[0];
+          };
+          
+          // Get the raw date value from Excel
+          const rawDateValue = dateCol >= 0 && dateCol < row.length ? row[dateCol] : null;
+          
           // Create transaction
           const transaction: TransactionItem = {
             id: `tx-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 4)}`,
-            tanggal: getStringValue(dateCol) || new Date().toISOString().split('T')[0],
+            tanggal: parseExcelDate(rawDateValue),
             uraian: getStringValue(descCol) || 'Transaksi Tanpa Keterangan',
             penerimaan,
             pengeluaran,
-            saldo: runningBalance
+            jumlah: amount,
+            saldo_berjalan: runningBalance
           };
           
           transactions.push(transaction);
