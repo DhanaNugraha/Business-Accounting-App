@@ -8,6 +8,7 @@ import {
 import { Toaster } from 'react-hot-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppProvider } from './contexts/AppContext';
+import { SettingsProvider } from './contexts/SettingsContext';
 import Layout from './components/Layout';
 import UploadPage from './pages/UploadPage';
 import EditorPage from './pages/EditorPage';
@@ -41,13 +42,44 @@ const router = createBrowserRouter(
   }
 );
 
+// Common toast options
+const toastOptions = {
+  position: 'top-center' as const,
+  style: {
+    background: '#1F2937', // gray-800
+    color: '#F9FAFB', // gray-50
+    padding: '12px 16px',
+    borderRadius: '8px',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+    fontSize: '14px',
+    maxWidth: '500px',
+  },
+  duration: 3000,
+  success: {
+    duration: 3000,
+    iconTheme: {
+      primary: '#10B981', // emerald-500
+      secondary: '#F9FAFB', // gray-50
+    },
+  },
+  error: {
+    duration: 5000,
+    iconTheme: {
+      primary: '#EF4444', // red-500
+      secondary: '#F9FAFB', // gray-50
+    },
+  },
+};
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppProvider>
-        <Toaster position="top-center" />
-        <RouterProvider router={router} />
-      </AppProvider>
+      <SettingsProvider>
+        <AppProvider>
+          <Toaster {...toastOptions} />
+          <RouterProvider router={router} />
+        </AppProvider>
+      </SettingsProvider>
     </QueryClientProvider>
   );
 };

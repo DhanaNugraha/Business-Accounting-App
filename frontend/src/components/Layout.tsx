@@ -7,6 +7,7 @@ import {
   ArrowUpTrayIcon as UploadIcon,
   DocumentTextIcon as DocumentIcon
 } from '@heroicons/react/24/outline';
+import ReminderSettings from './settings/ReminderSettings';
 
 // Icon size classes using Tailwind spacing
 const iconClass = 'w-icon-sm h-icon-sm';
@@ -86,14 +87,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <XIcon className={mobileMenuIconClass} />
               </button>
             </div>
-            <nav className="flex-1 px-4 py-6 space-y-2">
+            <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
               {navigation.map((item) => (
                 <NavLink key={item.name} to={item.to} icon={item.icon}>
                   {item.name}
                 </NavLink>
               ))}
             </nav>
-            <div className="p-4 border-t border-gray-200">
+            <div className="px-4 pb-6">
+              <ReminderSettings />
             </div>
           </div>
         </div>
@@ -101,20 +103,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Desktop sidebar - Hidden on mobile */}
       <div className="hidden lg:flex lg:flex-shrink-0 lg:fixed lg:inset-y-0 lg:z-30">
-        <div className="flex flex-col w-64 h-full border-r border-gray-200 bg-white shadow-sm">
-          <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-            <div className="flex items-center flex-shrink-0 px-6">
-              <h1 className="text-2xl font-bold text-primary-600">Accounting Pro</h1>
+        <nav className="hidden lg:flex flex-col w-64 h-screen fixed left-0 top-0 bg-white shadow-md border-r border-gray-200">
+          <div className="p-6">
+            <div className="flex items-center mb-8">
+              <h1 className="text-xl font-bold text-gray-900">Accounting App</h1>
             </div>
-            <nav className="mt-8 flex-1 px-4 space-y-2">
-              {navigation.map((item) => (
-                <NavLink key={item.name} to={item.to} icon={item.icon}>
-                  {item.name}
-                </NavLink>
-              ))}
-            </nav>
+            <div className="flex-1 flex flex-col">
+              <nav className="space-y-2">
+                {navigation.map((item) => (
+                  <NavLink key={item.name} to={item.to} icon={item.icon}>
+                    {item.name}
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
           </div>
-        </div>
+          <div className="mt-auto p-6">
+            <ReminderSettings />
+          </div>
+        </nav>
       </div>
 
       <div className="flex-1 flex flex-col lg:pl-64">

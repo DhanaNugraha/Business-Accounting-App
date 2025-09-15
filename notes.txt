@@ -50,6 +50,13 @@ bikin kalau ditutup harus ada promptnya
 
 download report
 
+report laba/rugi bersih per bulan (next month should start with previous month's balance)
 
 
+I want you to make:
+1. alert user when closing the website to confirm if they really want to leave the site (and remind them to export changes)
+2. a popup reminder (like a toast) for the user to export their file in regular interval (the time can be measured from when they enter the website) 
+3. reminder interval settings in the sidebar (make it as like 1 min, 5 min, 15, etc) (also 5 seconds for testing)
 
+
+make sure not to store any information from excel in local storage as it is sensitive information.

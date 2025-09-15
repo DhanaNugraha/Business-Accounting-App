@@ -1,16 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import type { TransactionItem } from '@/types';
 import { TransactionEditor } from '@/components/TransactionEditor';
 import { AccountSelector } from '@/components/AccountSelector';
 import { toast } from 'react-hot-toast';
 import { PlusIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import useBeforeUnload from '@/hooks/useBeforeUnload';
+import { useSettings } from '@/contexts/SettingsContext';
+import { useExportReminder } from '@/components/ExportReminderToast';
 
 export const EditorPage = () => {
   const { state, dispatch } = useAppContext();
   const [isSaving, setIsSaving] = useState(false);
+  const { reminderInterval, isReminderActive } = useSettings();
+  const { startReminder, stopReminder } = useExportReminder(reminderInterval);
+  const hasUnsavedChanges = useRef(false);
   
   const selectedAccount = state.accounts.find(acc => acc.name === state.currentAccount);
+  
+  // Manage reminders based on settings
+  useEffect(() => {
+    // Always mark as having changes to ensure reminders work
+    hasUnsavedChanges.current = true;
+    
+    // Start/stop reminder based on settings
+    if (isReminderActive) {
+      console.log('Starting reminder with interval:', reminderInterval);
+      startReminder();
+    } else {
+      console.log('Stopping reminder');
+      stopReminder();
+    }
+    
+    // Clean up on unmount or when dependencies change
+    return () => {
+      console.log('Cleaning up reminder');
+      stopReminder();
+    };
+  }, [isReminderActive, reminderInterval, startReminder, stopReminder]);
+  
+  // Handle tab close/refresh confirmation
+  useBeforeUnload(hasUnsavedChanges.current, 
+    'Anda memiliki perubahan yang belum disimpan. Apakah Anda yakin ingin meninggalkan halaman ini?');
   
   const handleAddAccount = () => {
     const accountName = prompt('Masukkan nama akun baru:');
@@ -41,6 +72,15 @@ export const EditorPage = () => {
       console.error(error);
       toast.error(error);
       return;
+    }
+    
+    // Reset the unsaved changes flag
+    hasUnsavedChanges.current = false;
+    
+    // Reset the reminder timer
+    if (isReminderActive) {
+      stopReminder();
+      startReminder();
     }
     
     try {
