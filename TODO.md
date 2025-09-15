@@ -122,12 +122,19 @@
   - [X] Add success/error toast notifications
   - [ ] Enhance mobile responsiveness
   - [ ] Implement dark mode
+  - [x] Improve reminder settings UI with collapsible panel
+  - [x] Add visual feedback for active reminder state
+  - [x] Localize UI text to Indonesian
+  - [x] Optimize reminder settings for both mobile and desktop views
 
 ## Recent Changes
 - [x] Renamed transaction amount field from 'saldo' to 'jumlah' across the application
 - [x] Updated all related components and validations
 - [x] Fixed TypeScript type definitions and interfaces
-- [x] Ensured backward compatibility with existing data
+- [x] Improved reminder settings UI with collapsible panel
+- [x] Added visual feedback for active reminder state
+- [x] Localize UI text to Indonesian
+- [x] Optimize reminder settings for both mobile and desktop views
 - [x] Updated documentation and comments
 
 ## Testing
