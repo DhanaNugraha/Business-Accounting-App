@@ -350,7 +350,7 @@ const ReportsPage: React.FC = () => {
                     />
                   </LineChart>
                 ) : (
-                  <LineChart 
+                  <BarChart 
                     data={data}
                     margin={{
                       top: 20,
@@ -358,6 +358,8 @@ const ReportsPage: React.FC = () => {
                       left: 20,
                       bottom: 5,
                     }}
+                    barGap={0}
+                    barCategoryGap="20%"
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
@@ -382,27 +384,19 @@ const ReportsPage: React.FC = () => {
                       }}
                     />
                     <Legend />
-                    <Line 
-                      type="linear"
+                    <Bar 
                       dataKey="income" 
                       name="Pendapatan" 
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      dot={data.length <= 12}
-                      activeDot={{ r: 6 }}
-                      connectNulls={true}
+                      fill="#10b981"
+                      radius={[4, 4, 0, 0]}
                     />
-                    <Line 
-                      type="linear"
+                    <Bar 
                       dataKey="expense" 
                       name="Pengeluaran" 
-                      stroke="#ef4444"
-                      strokeWidth={2}
-                      dot={data.length <= 12}
-                      activeDot={{ r: 6 }}
-                      connectNulls={true}
+                      fill="#ef4444"
+                      radius={[4, 4, 0, 0]}
                     />
-                  </LineChart>
+                  </BarChart>
                 )}
               </ResponsiveContainer>
             </div>
