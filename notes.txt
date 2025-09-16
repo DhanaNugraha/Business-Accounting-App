@@ -36,19 +36,22 @@ export report
 
 
 
-security?
 
-backup? saving?
 
 find transaction and filtering
 
-bikin tabel banyak 
-
-bisa bikin kategori tanpa transaksi
-
-bikin kalau ditutup harus ada promptnya
+bisa bikin multiple kategori tanpa transaksi
 
 download report
 
-report laba/rugi bersih per bulan (next month should start with previous month's balance)
+report laba/rugi bersih per bulan (next month should start with previous month's balance) done (changed per month to bar charts) (should also put this in writing)
 
+
+kalau tanggal ga urut gimn?
+
+
+mobile interface
+
+uvicorn main:app --reload --host 0.0.0.0 --port 8000  
+
+npm run dev

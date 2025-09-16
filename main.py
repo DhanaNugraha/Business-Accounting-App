@@ -17,19 +17,21 @@ from openpyxl.utils import get_column_letter
 # Initialize FastAPI app
 app = FastAPI(title="Accounting Helper API")
 
-# Development origins - update this in production
-DEV_ORIGINS = [
+# Allowed origins - update with your production domain
+ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
     "http://localhost:8000",
+    "https://*.onrender.com",  # Allow Render deployment
+    "https://*.vercel.app",    # Allow Vercel if you use it for frontend
 ]
 
 # Enable CORS with dynamic origin handling
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=DEV_ORIGINS,
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -222,7 +224,7 @@ async def save_file(data: TemplateData, request: Request):
         # Create a response with the file content
         headers = {
             "Content-Disposition": f'attachment; filename="accounting_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"',
-            "Access-Control-Allow-Origin": origin if origin in DEV_ORIGINS else "*",
+            "Access-Control-Allow-Origin": origin if any(origin.startswith(allowed.replace('*', '')) for allowed in ALLOWED_ORIGINS) else "*",
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Expose-Headers": "Content-Disposition",
         }
@@ -245,7 +247,7 @@ async def save_file(data: TemplateData, request: Request):
 
         # Include CORS headers in error response
         headers = {
-            "Access-Control-Allow-Origin": origin if origin in DEV_ORIGINS else "*",
+            "Access-Control-Allow-Origin": origin if any(origin.startswith(allowed.replace('*', '')) for allowed in ALLOWED_ORIGINS) else "*",
             "Access-Control-Allow-Credentials": "true",
         }
 

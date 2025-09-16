@@ -177,6 +177,19 @@
 - [ ] Add error boundaries for report components
 
 
+## Deployment
+- [x] Dockerize the application
+  - [x] Create Dockerfile for full-stack deployment
+  - [x] Configure .dockerignore
+  - [x] Update CORS settings for production
+  - [x] Create render.yaml configuration
+- [ ] Deployment to Render
+  - [X] Set up GitHub repository
+  - [ ] Configure Render web service
+  - [ ] Test production deployment
+  - [ ] Set up custom domain (optional)
+  - [ ] Configure environment variables
+
 ## Future Enhancements
 - [ ] Implement category filtering and grouping
 - [ ] Add support for category-specific reporting
@@ -192,7 +205,6 @@
   - [ ] Upload validation
   - [ ] Template download
   - [ ] Save/load from localStorage
-
 
 ## Backlog
 - [ ] Cloud backup and sync

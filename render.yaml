@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: business-accounting-app
+    env: docker
+    build:
+      dockerfile: Dockerfile
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONDONTWRITEBYTECODE
+        value: "1"
+    plan: free
+    numInstances: 1
+    healthCheckPath: /
