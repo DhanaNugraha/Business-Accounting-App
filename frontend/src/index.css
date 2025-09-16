@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    @apply text-gray-900 bg-gray-50 min-h-screen;
+  }
+
+  /* Ensure icons inherit text color by default */
+  svg {
+    @apply inline-block fill-current;
+  }
+
+  /* Fix icon alignment in buttons */
+  button svg {
+    @apply align-middle;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 rounded-full hover:bg-gray-400;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Custom components */
+.btn {
+  @apply px-4 py-2 rounded-md font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.btn-primary {
+  @apply bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500;
+}
+
+.btn-secondary {
+  @apply bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-primary-500;
+}
+
+.card {
+  @apply bg-white rounded-lg shadow overflow-hidden;
+}
+
+.input {
+  @apply mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm;
+}
+
+/* Custom tooltip for charts */
+.recharts-tooltip-cursor {
+  fill: rgba(0, 0, 0, 0.05);
+}
+
+.recharts-default-tooltip {
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  padding: 0.75rem !important;
+}
+
+.recharts-tooltip-label {
+  color: #4b5563 !important;
+  font-weight: 500 !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.recharts-tooltip-item {
+  color: #1f2937 !important;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  @apply animate-spin rounded-full border-4 border-solid border-primary-500 border-t-transparent h-12 w-12;
+}
+
+/* Toast notifications */
+.Toastify__toast {
+  @apply rounded-lg shadow-lg font-medium;
+}
+
+.Toastify__toast--success {
+  @apply bg-green-100 text-green-800;
+}
+
+.Toastify__toast--error {
+  @apply bg-red-100 text-red-800;
+}
+
+.Toastify__toast--warning {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.Toastify__toast--info {
+  @apply bg-blue-100 text-blue-800;
+}

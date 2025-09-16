@@ -1,96 +1,218 @@
-# Business Accounting App - Development Roadmap
+# Accounting Web App Development Roadmap (Updated for Editor Workflow)
 
-## Backend (Tauri/Rust)
+## Backend Setup
+- [x] Create virtual environment and install dependencies
+- [x] Set up FastAPI application structure
+- [x] Update API endpoints in main.py
+  - [x] POST /upload - Handle new Excel format with multiple accounts
+  - [x] POST /save - Save edited transactions back to Excel
+  - [x] GET /template - Generate blank template with new format
+- [x] Implement transaction processing logic
+  - [x] Parse multiple accounts from Excel
+  - [x] Calculate running balances per account
+  - [x] Handle in-memory data structure for transactions
 
-### Database Initialization
-- [x] Create database schema migrations (accounts, transactions, etc.)
-- [x] Implement database initialization on app start
-- [x] Add error handling for database operations
-- [ ] Implement database backup/restore functionality
+## Frontend Setup
+- [x] Set up React + TypeScript + Vite project
+- [x] Install additional dependencies
+  - [x] React Table or similar for editable grid
+  - [x] Date picker for transaction dates
+  - [x] Currency input handling
+- [x] Create AccountSelector component
+  - [x] Dropdown to switch between accounts
+  - [x] Display current account balance
+- [x] Update UploadPage component
+  - [x] Handle new Excel format
+  - [x] Validate file structure
+  - [x] Parse and store account data
+- [x] Create TransactionEditor component
+  - [x] Editable data grid for transactions
+  - [x] Add/remove transaction rows
+  - [x] Auto-calculate running balances (saldo_berjalan)
+  - [x] Inline editing for all fields
+  - [x] Date picker for transaction dates
+  - [x] Edit existing transactions
+  - [x] Improved form layout and styling
+  - [x] Add "saldo_berjalan" column for running balance display
+  - [x] Implement navigation to reports page
+- [x] Implement state management
+  - [x] Track multiple accounts
+  - [x] Handle transaction CRUD operations
+  - [x] Auto-save to localStorage
 
-### Core Services
-- [x] Implement Account service (CRUD operations)
-- [ ] Implement Transaction service (CRUD operations with validation)
-- [ ] Implement Report service (already started, needs integration)
-- [x] Add data validation for all inputs
+## Frontend Pages
+- [x] Upload Page
+  - [x] File upload component
+  - [x] Drag and drop support
+  - [x] File type validation
+  - [x] Progress indicators
+- [x] Editor Page
+  - [x] Transaction table with inline editing
+  - [x] Renamed 'saldo' to 'jumlah' for transaction amounts
+  - [x] Implemented 'saldo_berjalan' for running balance calculation
+  - [x] Add/delete transaction functionality
+  - [x] Save changes button
+  - [x] Form validation
+  - [ ] Date range filtering
+  - [ ] Transaction search and filtering
+- [x] Reports Page
+  - [x] Financial summary cards
+  - [x] Charts for income/expenses
+  - [x] Export to PDF/Excel
+  - [x] Account switching functionality
+  - [x] Monthly/Yearly/Running balance reports
+  - [x] Improved chart visualization with number formatting (jt/k)
 
-### Tauri Commands
-- [x] Create Rust commands for database operations
-- [x] Implement proper error handling and result types
-- [x] Add logging for debugging
 
----
+## Recent Improvements
+- [x] Added "Saldo Berjalan" (Running Balance) feature
+  - [x] Backend calculation of running balances
+  - [x] Updated Excel template generation
+  - [x] Added column to transaction editor
+  - [x] Implemented proper TypeScript types
+  - [x] Added navigation to reports page
+- [x] Fixed template download functionality
+  - [x] Rewrote file handling to prevent race conditions
+  - [x] Improved CORS configuration for file downloads
+  - [x] Added proper cleanup of temporary files
+  - [x] Enhanced error handling and logging
+- [x] Refactored transaction data structure to support dynamic categories
+  - [x] Updated TransactionItem interface for dictionary-based Penerimaan/Pengeluaran
+  - [x] Modified TransactionEditor to handle dynamic categories
+  - [x] Updated UploadPage and AppContext for new data structure
+  - [x] Added data normalization for backward compatibility
+  - [x] Fixed TypeScript type conflicts and improved type safety
+- [x] Fixed TypeScript type conflicts in UploadPage
+- [x] Improved error handling and user feedback
+- [x] Cleaned up unused code and imports
+- [x] Standardized Indonesian field names across components
+- [x] Added proper loading states for file uploads
+- [x] Implemented local transaction saving functionality
+  - [x] Save transactions to Excel file on device
+  - [x] Handle file download with proper naming
+  - [x] Add error handling for save operations
+- [x] Improved transaction editing workflow
+  - [x] Simplified save functionality to handle all transactions
+  - [x] Fixed issues with edit mode and save button behavior
+  - [x] Added proper state management for editing
 
-## Frontend (React/TypeScript)
+## In Progress
+- [X] Add data validation for transaction entries
+  - [x] Validate date formats
+  - [x] Ensure numeric fields contain valid numbers
+  - [x] Add required field validation
+  - [X] Add client-side validation feedback
 
-### UI/UX Improvements
-- [x] Implement responsive sidebar navigation
-- [x] Add custom scrollbars and smooth scrolling
-- [x] Create consistent button and form component styles
-- [ ] Add loading states and transitions
+## Pending Features
+- [ ] Add transaction search and filtering
+  - [ ] Search by description
+  - [ ] Filter by date range
+  - [ ] Filter by amount range
+  - [ ] Filter by category
 
-### State Management
-- [ ] Set up state management (Context API or Zustand)
-- [x] Create hooks for data fetching and mutations
-- [x] Implement loading and error states
+- [ ] Reporting
+  - [X] Generate monthly reports
+  - [X] Generate yearly reports
+  - [X] Generate running balance reports
+  - [ ] Export reports to PDF/Excel
+  - [X] Visualize spending/income trends (line chart)
 
-### Forms & Validation
-- [ ] Create form components with validation
-- [ ] Implement form state management
-- [ ] Add input masks for currency, dates, etc.
+- [ ] UI/UX Improvements
+  - [X] Improve form validation feedback
+  - [X] Add success/error toast notifications
+  - [ ] Enhance mobile responsiveness
+  - [ ] Implement dark mode
+  - [x] Improve reminder settings UI with collapsible panel
+  - [x] Add visual feedback for active reminder state
+  - [x] Localize UI text to Indonesian
+  - [x] Optimize reminder settings for both mobile and desktop views
 
-### Pages & Features
-
-#### Accounts
-- [x] Connect to backend service
-- [x] Implement account creation/editing
-- [x] Add account deletion with confirmation
-- [x] Add search and filtering
-
-#### Transactions
-- [ ] Create transaction form with account selection
-- [ ] Implement transaction listing with pagination
-- [ ] Add transaction filtering by date/account/type
-- [ ] Add bulk transaction import/export
-
-#### Reports
-- [ ] Connect to ReportService
-- [ ] Implement date range selection
-- [ ] Add report export (PDF/Excel)
-- [ ] Add report scheduling
-
-#### Settings
-- [ ] Implement settings persistence
-- [ ] Add theme switching (light/dark mode)
-- [ ] Add backup/restore UI
-- [ ] Add company information management
-
----
+## Recent Changes
+- [x] Renamed transaction amount field from 'saldo' to 'jumlah' across the application
+- [x] Updated all related components and validations
+- [x] Fixed TypeScript type definitions and interfaces
+- [x] Improved reminder settings UI with collapsible panel
+- [x] Added visual feedback for active reminder state
+- [x] Localize UI text to Indonesian
+- [x] Optimize reminder settings for both mobile and desktop views
+- [x] Updated documentation and comments
 
 ## Testing
-- [ ] Add unit tests for services
-- [ ] Add integration tests for Tauri commands
-- [ ] Add E2E tests for critical paths
-- [ ] Set up test database for development
-
----
-
-## Build & Deployment
-- [ ] Configure production build
-- [ ] Set up auto-updates
-- [ ] Create installer packages
-- [ ] Add auto-update functionality
+- [ ] Unit tests for utility functions
+- [ ] Integration tests for API endpoints
+- [ ] End-to-end tests for critical user flows
+- [ ] Cross-browser testing
+- [ ] Test account switching in reports
+- [ ] Test report generation with different account data
+- [ ] Test transaction editing functionality
+- [ ] Test multi-account operations
 
 ## Documentation
-- [ ] Document API endpoints
-- [ ] Add JSDoc to all components and functions
-- [ ] Create user guide
-- [ ] Add developer setup instructions
+- [ ] Update README with new features
+- [ ] Add JSDoc comments
+  - [ ] Component props and state
+  - [ ] Utility functions
+  - [ ] Custom hooks
+- [ ] Document transaction editing workflow
+- [ ] Document multi-account data structure
+
+## UI/UX Improvements
+- [x] Add validation for category names
+- [x] Implement duplicate category prevention
+- [x] Enhanced Transaction Editor UX
+  - [x] Smooth scrolling to form when adding/editing
+  - [x] Visual feedback for active/edited transactions
+  - [x] Improved amount input field with better feedback
+  - [x] Better form visibility and layout
+  - [x] Enhanced error state visualization
+  - [x] Responsive design improvements
+- [x] Improve form layout with two-row design
+- [x] Add currency formatting for amount input
+- [x] Fix form field alignment and spacing
+- [x] Make category input more user-friendly
+- [x] Prevent layout shifts during input
+- [x] Add visual feedback for form validation
+- [ ] Add tooltips for category management
+- [ ] Improve mobile responsiveness for transaction editor
+- [ ] Add error boundaries for report components
+
+
+## Deployment
+- [x] Dockerize the application
+  - [x] Create Dockerfile for full-stack deployment
+  - [x] Configure .dockerignore
+  - [x] Update CORS settings for production
+  - [x] Create render.yaml configuration
+- [ ] Deployment to Render
+  - [X] Set up GitHub repository
+  - [ ] Configure Render web service
+  - [ ] Test production deployment
+  - [ ] Set up custom domain (optional)
+  - [ ] Configure environment variables
 
 ## Future Enhancements
+- [ ] Implement category filtering and grouping
+- [ ] Add support for category-specific reporting
+- [X] Implement data validation rules per category
+- [ ] Frontend component tests
+  - [ ] Transaction editor functionality
+  - [ ] Account switching
+  - [ ] Balance calculations
+- [ ] End-to-end tests
+  - [ ] Full workflow: upload → edit → save → download
+  - [ ] Data integrity validation
+- [ ] Test file handling
+  - [ ] Upload validation
+  - [ ] Template download
+  - [ ] Save/load from localStorage
+
+## Backlog
+- [ ] Cloud backup and sync
+- [ ] Recurring transactions
+- [ ] Receipt image upload and attachment
 - [ ] Multi-currency support
-- [ ] Invoice generation
-- [ ] Receipt scanning with OCR
-- [ ] Bank statement import
-- [ ] User authentication
-- [ ] Multi-user support with roles
+- [ ] Budget tracking and alerts
+
+
+
+

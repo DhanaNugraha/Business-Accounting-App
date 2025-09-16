@@ -1,0 +1,177 @@
+Got it ✅ — this is a significant but very nice change:
+Instead of just **upload → analyze → download**, now the website becomes a **full editor** with multiple accounts, live balance calculation, and editable tables.
+
+Here’s a **new all-in-one prompt** for your coding AI that incorporates your new format, editor workflow, and export.
+
+---
+
+# 📌 New Prompt: Accounting Web App with Editable Transactions
+
+Please generate a **full-stack project** with the following requirements:
+
+---
+
+## 1. Tech Stack
+
+* **Backend:** FastAPI (Python)
+* **Frontend:** React + TypeScript + TailwindCSS
+* **Data Handling:** `pandas` + `openpyxl` for Excel read/write
+* **Charts & UI:** Recharts for charts, React Table (or similar) for editable grid
+
+---
+
+## 2. Excel Template Format
+
+The template file will have dynamic columns based on the transaction categories. The basic structure is:
+
+1. **Fixed Columns**:
+   - **Tanggal** → date of transaction (YYYY-MM-DD)
+   - **Uraian** → description of transaction
+   - **Saldo** → auto-calculated balance (running total)
+
+2. **Dynamic Columns**:
+   - **Penerimaan_*** → one column for each income category (e.g., Penerimaan_Tunai, Penerimaan_Transfer)
+   - **Pengeluaran_*** → one column for each expense category (e.g., Pengeluaran_Supplier, Pengeluaran_Internet)
+
+### Example Rows:
+
+| Tanggal    | Uraian           | Penerimaan_Tunai | Penerimaan_Transfer | Pengeluaran_Supplier | Pengeluaran_Internet | Saldo      |
+|------------|------------------|------------------|---------------------|----------------------|----------------------|------------|
+| 2025-01-01 | Modal Awal       | 10,000,000      |                     |                      |                      | 10,000,000 |
+| 2025-01-03 | Beli Barang      |                  |                     | 2,000,000            |                      | 8,000,000  |
+| 2025-01-05 | Penjualan Produk |                  | 3,000,000           |                      |                      | 11,000,000 |
+| 2025-01-06 | Bayar Internet   |                  |                     |                      | 500,000              | 10,500,000 |
+
+---
+
+## 3. Multiple Accounts
+
+* Support **multiple accounts** (e.g. “Kas”, “Bank”, “E-Wallet”).
+* Each transaction belongs to one account.
+* Each account maintains its **own running balance**.
+* User can **switch between accounts** in the UI (dropdown or sidebar).
+
+---
+
+## 4. App Workflow
+
+1. **Upload Excel**
+
+   * User uploads a file in the defined format.
+   * Backend parses it into JSON, preserving accounts & transactions.
+
+2. **Editor UI**
+
+   * Show transactions in an **editable table** (React Table or similar).
+   * User can:
+
+     * Add a new transaction (date, description, income/expense, account).
+     * Edit any existing row inline.
+     * Delete a transaction.
+   * **Saldo column auto-updates** whenever transactions are changed.
+
+3. **Download Excel**
+
+   * After edits, user can **download the updated Excel** (same format).
+
+4. **Optional Autosave**
+
+   * If feasible, implement **autosave to browser localStorage** so changes are not lost if the user refreshes.
+
+---
+
+## 5. Backend (FastAPI)
+
+Endpoints:
+
+* `POST /upload` → upload Excel, return JSON of accounts & transactions.
+* `POST /save` → receive JSON of accounts & transactions, return updated Excel file.
+* `GET /template` → download blank Excel template with correct headers.
+
+Libraries:
+
+* `fastapi`, `pydantic`, `uvicorn`
+* `pandas`, `openpyxl`
+
+---
+
+## 6. Frontend (React + TS)
+
+Pages/components:
+
+* **UploadPage**:
+
+  * Upload Excel → send to backend → receive structured JSON.
+  * Store in React state.
+
+* **EditorPage**:
+
+  * Show dropdown to select account.
+  * Show editable transaction table.
+  * Auto-calc “Saldo” column live.
+  * Buttons:
+
+    * “Add Transaction”
+    * “Download Excel” → send JSON to backend → receive file.
+  * Optional: Autosave to `localStorage`.
+
+* **ReportsPage** (optional but nice):
+
+  * Use Recharts to show pie chart of expenses & bar chart of incomes by account.
+
+---
+
+## 7. Example JSON Format (from backend)
+
+```json
+{
+  "accounts": [
+    {
+      "name": "Kas",
+      "transactions": [
+        {
+          "tanggal": "2025-01-01",
+          "uraian": "Modal Awal",
+          "penerimaan": {"Tunai": 10000000},
+          "pengeluaran": {},
+          "saldo": 10000000
+        },
+        {
+          "tanggal": "2025-01-03",
+          "uraian": "Beli Barang",
+          "penerimaan": {},
+          "pengeluaran": {"Supplier": 2000000},
+          "saldo": 8000000
+        }
+      ]
+    },
+    {
+      "name": "Bank",
+      "transactions": [
+        {
+          "tanggal": "2025-01-05",
+          "uraian": "Pendapatan Jasa",
+          "penerimaan": {"Transfer": 3000000},
+          "pengeluaran": {},
+          "saldo": 3000000
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## 8. Deliverables
+
+* A working **FastAPI backend** with the 3 endpoints.
+* A working **React frontend** with Upload → Editor → Download flow.
+* An **Excel template** generator (`/template`).
+* Ignore all user data (no DB, no persistence on server).
+
+---
+
+✅ This way, the website is a **local editor + helper tool** for accounting, without storing user data.
+
+---

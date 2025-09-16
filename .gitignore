@@ -1,103 +1,65 @@
-# =========================
-# Logs
-# =========================
-logs/
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.venv/
+venv/
+ENV/
+env/
+*.db
+*.sqlite
+*.sqlite3
+
+# FastAPI logs
 *.log
+
+# Jupyter (if used)
+.ipynb_checkpoints/
+
+# === Node / React ===
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
-# Diagnostic reports
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
-# =========================
-# Runtime / Cache
-# =========================
-pids
-*.pid
-*.pid.lock
-*.seed
-lib-cov
-coverage/
-*.lcov
-.nyc_output
-.grunt
-bower_components/
-.lock-wscript
-build/Release/
-jspm_packages/
-web_modules/
-*.tsbuildinfo
-.npm/
-.eslintcache
-.stylelintcache
-.node_repl_history
-*.tgz
-.yarn-integrity
-.cache/
-.parcel-cache/
+# Build output
+dist/
+build/
 .next/
 out/
-.nuxt/
-dist/
 .cache/
-.vuepress/dist/
 .temp/
 .svelte-kit/
-**/.vitepress/dist/
-**/.vitepress/cache/
-.docusaurus/
-.serverless/
-.fusebox/
-.dynamodb/
-.firebase/
-.tern-port
-.vscode-test/
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
+.vite/
+.vitepress/
+.vuepress/dist/
 
-# Yarn v3
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
-
-# =========================
-# Dependencies
-# =========================
-node_modules/
-
-# =========================
-# Environment
-# =========================
+# Local env files
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example
 
-# =========================
-# Rust / Tauri
-# =========================
-/target/
-**/*.rs.bk
-
-# =========================
-# SQLite Database
-# =========================
-*.db
+# === Excel / Data Files ===
+*.xlsx
+*.xls
+*.csv
 *.db-shm
 *.db-wal
-*.sqlite
-*.sqlite3
 
-# =========================
-# OS / Editor Junk
-# =========================
+# === OS / Editor ===
 .DS_Store
 Thumbs.db
 ehthumbs.db
@@ -110,11 +72,6 @@ Desktop.ini
 *.swo
 *.iml
 
-# =========================
-# Optional: Built Installers
-# =========================
-*.msi
-*.dmg
-*.exe
-*.deb
-*.AppImage
+# === Tauri / Rust (if any leftover) ===
+/target/
+**/*.rs.bk
