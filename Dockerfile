@@ -15,8 +15,8 @@ RUN npm install --legacy-peer-deps
 COPY frontend/ .
 
 # Set environment for production build
-ENV NODE_ENV=production
-VITE_API_BASE_URL=https://business-accounting-app.onrender.com
+ENV NODE_ENV=production \
+    VITE_API_BASE_URL=https://business-accounting-app.onrender.com
 
 # Build the frontend
 RUN npm run build
