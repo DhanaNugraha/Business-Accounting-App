@@ -8,11 +8,14 @@ WORKDIR /app/frontend
 # Copy package files first for better caching
 COPY frontend/package*.json ./
 
-# Install dependencies
-RUN npm install --legacy-peer-deps
-
 # Copy the rest of the frontend files
 COPY frontend/ .
+
+# Remove the postinstall script to prevent it from running
+RUN npm pkg delete scripts.postinstall
+
+# Install dependencies
+RUN npm install --legacy-peer-deps
 
 # Set environment for production build
 ENV NODE_ENV=production
