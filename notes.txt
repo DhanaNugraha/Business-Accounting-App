@@ -38,7 +38,7 @@ export report
 
 
 
-find transaction and filtering
+find transaction and filtering, sorting
 
 bisa bikin multiple kategori tanpa transaksi
 
@@ -47,7 +47,9 @@ download report
 report laba/rugi bersih per bulan (next month should start with previous month's balance) done (changed per month to bar charts) (should also put this in writing)
 
 
-kalau tanggal ga urut gimn?
+mobile view
+
+flag double counting
 
 
 mobile interface

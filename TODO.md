@@ -96,6 +96,32 @@
   - [x] Fixed issues with edit mode and save button behavior
   - [x] Added proper state management for editing
 
+## Deployment
+- [x] Backend Deployment on Render
+  - [x] Set up Render deployment
+  - [x] Configure environment variables
+  - [x] Set up build command and start script
+  - [x] Configure CORS for frontend access
+  - [x] Test API endpoints
+  - [x] Set up custom domain (if needed)
+  - [x] Configure proper CORS headers and OPTIONS handling
+  - [x] Verify file upload/download functionality
+  - [x] Ensure proper error handling and logging
+  - [x] Set up proper caching headers
+  - [x] Configure proper MIME types for file downloads
+
+- [x] Frontend Deployment on Vercel
+  - [x] Set up Vercel project
+  - [x] Configure environment variables
+  - [x] Set up build and output settings
+  - [x] Configure CORS and security headers
+  - [x] Test all frontend functionality
+  - [x] Set up custom domain (if needed)
+  - [x] Configure proper routing and rewrites
+  - [x] Set up proper caching and CDN settings
+  - [x] Verify all API calls work in production
+  - [x] Test on different devices and browsers
+
 ## In Progress
 - [X] Add data validation for transaction entries
   - [x] Validate date formats
