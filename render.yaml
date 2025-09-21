@@ -3,7 +3,7 @@ services:
     name: business-accounting-backend
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000 --workers 1
+    startCommand: python -c "import os; port = int(os.environ.get('PORT', 10000)); print(f'Starting on port {port}'); import uvicorn; uvicorn.run('main:app', host='0.0.0.0', port=port, workers=1)"
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
