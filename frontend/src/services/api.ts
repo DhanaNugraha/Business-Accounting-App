@@ -1,10 +1,22 @@
 import axios from 'axios';
 
-// In development, use local backend
-// In production, use the Render backend URL (replace with your actual Render URL)
-const API_BASE_URL = import.meta.env.DEV 
-  ? 'http://localhost:8000' // Local development
-  : 'https://your-render-backend.onrender.com'; // Your Render backend URL
+// Get the current hostname to determine the environment
+const getApiBaseUrl = () => {
+  // If VITE_API_URL is explicitly set, use it (takes highest precedence)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+
+  // In production, use the production backend URL
+  if (import.meta.env.PROD) {
+    return 'https://business-accounting-app.onrender.com';
+  }
+
+  // Default to local development
+  return 'http://localhost:8000';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Check if we're in development mode using Vite's environment variables
 const isDevelopment = import.meta.env.DEV;
