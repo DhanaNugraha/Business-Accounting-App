@@ -53,9 +53,6 @@ COPY . .
 # Copy built frontend files
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# Create necessary directories
-RUN mkdir -p /app/excels /app/output
-
 # Expose the port the app runs on
 EXPOSE $PORT
 
