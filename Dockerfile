@@ -5,13 +5,17 @@ FROM node:18 AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Install dependencies first for better caching
+# Copy package files first for better caching
 COPY frontend/package*.json ./
 
-# Use npm install instead of npm ci for better compatibility
-RUN npm install --legacy-peer-deps
+# Copy .env.example and create .env if it doesn't exist
+COPY frontend/.env.example ./
+RUN if [ ! -f .env ]; then cp .env.example .env; fi
 
-# Copy source and build
+# Install dependencies without running postinstall script
+RUN npm install --legacy-peer-deps --ignore-scripts
+
+# Now copy the rest of the frontend files
 COPY frontend/ .
 
 # Set environment for production build
