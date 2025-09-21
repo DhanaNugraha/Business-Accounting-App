@@ -26,6 +26,8 @@ ALLOWED_ORIGINS = [
     "http://localhost:8000",
     "https://*.onrender.com",  # Allow Render deployment
     "https://*.vercel.app",    # Allow Vercel if you use it for frontend
+    "https://*-*.vercel.app",  # Allow Vercel preview deployments
+    "https://*-*-*.vercel.app" # Allow Vercel branch previews
 ]
 
 # Enable CORS with dynamic origin handling
@@ -105,9 +107,29 @@ class TemplateData(BaseModel):
 
 # API Endpoints
 @app.get("/")
-async def root() -> Dict[str, str]:
+async def root():
     """Root endpoint to check if the API is running."""
-    return {"message": "Accounting Helper API is running"}
+    return {"message": "Accounting Helper API is running", "status": "ok"}
+
+
+@app.get("/api/health")
+async def health_check(delay: int = 0):
+    """
+    Health check endpoint to monitor the backend status.
+    This endpoint can be called by the frontend to keep the Koyeb instance awake.
+    
+    Args:
+        delay: Optional delay in seconds before responding (for testing)
+    """
+    if delay > 0:
+        import asyncio
+        await asyncio.sleep(delay)
+        
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "accounting-helper-api"
+    }
 
 
 @app.get("/api/template")

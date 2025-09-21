@@ -118,8 +118,9 @@
   - [X] Visualize spending/income trends (line chart)
 
 - [ ] UI/UX Improvements
-  - [X] Improve form validation feedback
-  - [X] Add success/error toast notifications
+  - [x] Improve form validation feedback
+  - [x] Add success/error toast notifications
+  - [x] Update status messages for clarity
   - [ ] Enhance mobile responsiveness
   - [ ] Implement dark mode
   - [x] Improve reminder settings UI with collapsible panel
@@ -182,10 +183,10 @@
   - [x] Create Dockerfile for full-stack deployment
   - [x] Configure .dockerignore
   - [x] Update CORS settings for production
-  - [x] Create render.yaml configuration
-- [ ] Deployment to Render
+
+- [ ] Deployment to koyeb
   - [X] Set up GitHub repository
-  - [ ] Configure Render web service
+  - [ ] Configure koyeb web service
   - [ ] Test production deployment
   - [ ] Set up custom domain (optional)
   - [ ] Configure environment variables
@@ -195,16 +196,20 @@
 - [ ] Add support for category-specific reporting
 - [X] Implement data validation rules per category
 - [ ] Frontend component tests
-  - [ ] Transaction editor functionality
-  - [ ] Account switching
-  - [ ] Balance calculations
-- [ ] End-to-end tests
-  - [ ] Full workflow: upload → edit → save → download
-  - [ ] Data integrity validation
-- [ ] Test file handling
-  - [ ] Upload validation
-  - [ ] Template download
-  - [ ] Save/load from localStorage
+  - [X] Transaction editor functionality
+  - [x] Backend Monitoring
+  - [x] Implement health check endpoint
+  - [x] Add status monitoring for backend services
+  - [x] Optimize health check intervals (faster when backend is down)
+  - [x] Add Indonesian language support for status messages
+  - [X] Full workflow: upload → edit → save → download
+  - [X] Data integrity validation
+- [X] Test file handling
+  - [X] Upload validation
+  - [X] Template download
+- [X] End-to-end tests
+  - [X] Full workflow: upload → edit → save → download
+  - [X] Data integrity validation
 
 ## Backlog
 - [ ] Cloud backup and sync

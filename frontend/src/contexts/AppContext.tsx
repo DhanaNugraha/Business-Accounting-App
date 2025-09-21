@@ -12,6 +12,7 @@ interface AppState {
   currentAccount: string | null;
   isLoading: boolean;
   error: string | null;
+  isBackendReady: boolean;
 }
 
 type AppAction =
@@ -20,13 +21,15 @@ type AppAction =
   | { type: 'UPDATE_ACCOUNT'; payload: { accountName: string; transactions: TransactionItem[] } }
   | { type: 'ADD_ACCOUNT'; payload: AccountBase }
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string | null };
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_BACKEND_READY'; payload: boolean };
 
 const initialState: AppState = {
   accounts: [],
   currentAccount: null,
   isLoading: false,
   error: null,
+  isBackendReady: true,
 };
 
 const AppContext = createContext<{
@@ -159,6 +162,9 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
     case 'SET_ERROR':
       return { ...state, error: action.payload, isLoading: false };
 
+    case 'SET_BACKEND_READY':
+      return { ...state, isBackendReady: action.payload };
+
     default:
       return state;
   }
@@ -166,6 +172,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  
 
   // Load state from localStorage on mount
   useEffect(() => {

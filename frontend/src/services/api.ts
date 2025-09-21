@@ -91,6 +91,74 @@ apiClient.interceptors.response.use(
   }
 );
 
+// Keep track of the health check interval
+let healthCheckInterval: NodeJS.Timeout | null = null;
+
+// Health check function with increased timeout
+export const checkHealth = async (): Promise<{ status: string; timestamp: string; service: string }> => {
+  try {
+    const response = await apiClient.get('/api/health', {
+      timeout: 5000, // Shorter timeout for health check
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    // Don't throw error, just return a status indicating the backend might be sleeping
+    return {
+      status: 'unavailable',
+      timestamp: new Date().toISOString(),
+      service: 'accounting-helper-api'
+    };
+  }
+};
+
+// Start health checks
+export const startHealthChecks = (onStatusChange?: (status: string) => void) => {
+  // Clear any existing interval
+  if (healthCheckInterval) {
+    clearInterval(healthCheckInterval);
+    healthCheckInterval = null;
+  }
+
+  // Initial check
+  checkHealth().then(health => {
+    onStatusChange?.(health.status);
+  });
+
+  // Set up periodic checking
+  const checkAndUpdateStatus = async () => {
+    const health = await checkHealth();
+    const isBackendReady = health.status === 'ok';
+    onStatusChange?.(health.status);
+    
+    // If backend is not ready, set a faster interval (5 seconds)
+    if (!isBackendReady && healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+      healthCheckInterval = setInterval(checkAndUpdateStatus, 5000); // 5 seconds
+    }
+    // If backend becomes ready, switch to slower interval (5 minutes)
+    else if (isBackendReady && healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+      healthCheckInterval = setInterval(checkAndUpdateStatus, 5 * 60 * 1000); // 5 minutes
+    }
+  };
+  
+  // Initial interval setup (check more frequently by default)
+  healthCheckInterval = setInterval(checkAndUpdateStatus, 5000); // Start with 5 seconds
+
+  // Return cleanup function
+  return () => {
+    if (healthCheckInterval) {
+      clearInterval(healthCheckInterval);
+      healthCheckInterval = null;
+    }
+  };
+};
+
 // API functions
 export const downloadTemplate = async (): Promise<void> => {
   try {

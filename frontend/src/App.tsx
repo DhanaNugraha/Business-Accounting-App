@@ -13,6 +13,7 @@ import Layout from './components/Layout';
 import UploadPage from './pages/UploadPage';
 import EditorPage from './pages/EditorPage';
 import ReportsPage from './pages/ReportsPage';
+import BackendStatus from './components/BackendStatus';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -77,6 +78,7 @@ function App() {
       <SettingsProvider>
         <AppProvider>
           <Toaster {...toastOptions} />
+          <BackendStatus />
           <RouterProvider router={router} />
         </AppProvider>
       </SettingsProvider>
