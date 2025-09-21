@@ -1,8 +1,7 @@
 from fastapi import FastAPI, HTTPException, Response, Request
-from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import pandas as pd
@@ -15,24 +14,59 @@ from openpyxl.utils import get_column_letter
 from pathlib import Path
 
 # Determine if we're in production (running in Docker)
-IS_PRODUCTION = os.environ.get('NODE_ENV') == 'production'
+IS_PRODUCTION = os.environ.get("NODE_ENV") == "production"
 
 # Initialize FastAPI app
-app = FastAPI(title="Accounting Helper API", docs_url="/api/docs", openapi_url="/api/openapi.json")
+app = FastAPI(
+    title="Accounting Helper API", docs_url="/api/docs", openapi_url="/api/openapi.json"
+)
 
-# Set up paths for static files and templates
-frontend_dist = Path(__file__).parent / "frontend" / "dist"
+# Set up paths for static files
+frontend_path = Path(__file__).parent / "frontend" / "dist"
 
-# In production, mount static files if they exist
-if IS_PRODUCTION and frontend_dist.exists():
-    app.mount("/static", StaticFiles(directory=frontend_dist / "assets"), name="static")
-    templates = Jinja2Templates(directory=str(frontend_dist))
+# Serve static files for frontend
+if frontend_path.exists():
+    # Mount static files under /static
+    app.mount(
+        "/static", StaticFiles(directory=str(frontend_path), html=True), name="static"
+    )
+
+    # Serve the index.html for the root path
+    @app.get("/")
+    async def serve_index():
+        index_path = frontend_path / "index.html"
+        if not index_path.exists():
+            raise HTTPException(status_code=404, detail="Frontend not found")
+        return FileResponse(index_path)
+
+    # Serve other static files
+    @app.get("/{full_path:path}")
+    async def serve_static(full_path: str):
+        # Don't handle API routes here
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API route not found")
+
+        # Check if the requested file exists
+        file_path = frontend_path / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+
+        # For SPA routing, return index.html for any non-existent path
+        index_path = frontend_path / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+
+        raise HTTPException(status_code=404, detail="File not found")
+
+    print(f"Serving static files from '{frontend_path}' directory")
+else:
+    print("Note: 'dist' directory not found. Running in API-only mode.")
 
 # Allowed origins for CORS
 origins = [
     "https://business-accounting-app.onrender.com",
     "http://localhost:3000",
-    "http://127.0.0.1:3000"
+    "http://127.0.0.1:3000",
 ]
 
 # Enable CORS with dynamic origin handling
@@ -53,11 +87,12 @@ async def options_save(request: Request):
     origin = request.headers.get("origin")
     if origin not in origins and origin is not None:
         origin = "https://business-accounting-app.onrender.com"
-    
+
     return JSONResponse(
         content={"message": "OK"},
         headers={
-            "Access-Control-Allow-Origin": origin or "https://business-accounting-app.onrender.com",
+            "Access-Control-Allow-Origin": origin
+            or "https://business-accounting-app.onrender.com",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Allow-Credentials": "true",
@@ -65,22 +100,24 @@ async def options_save(request: Request):
         },
     )
 
+
 @app.options("/api/template")
 async def options_template(request: Request):
     origin = request.headers.get("origin")
     if origin not in origins and origin is not None:
         origin = "https://business-accounting-app.onrender.com"
-    
+
     return JSONResponse(
         content={"message": "OK"},
         headers={
-            "Access-Control-Allow-Origin": origin or "https://business-accounting-app.onrender.com",
+            "Access-Control-Allow-Origin": origin
+            or "https://business-accounting-app.onrender.com",
             "Access-Control-Allow-Methods": "GET, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Expose-Headers": "Content-Disposition",
-            "Access-Control-Max-Age": "86400"
-        }
+            "Access-Control-Max-Age": "86400",
+        },
     )
 
 
@@ -130,60 +167,26 @@ async def root():
     """Root endpoint to check if the API is running."""
     return {"message": "Accounting Helper API is running", "status": "ok"}
 
-@app.get("/", response_class=HTMLResponse)
-async def serve_frontend():
-    if IS_PRODUCTION and frontend_dist.exists():
-        index_path = frontend_dist / "index.html"
-        if index_path.exists():
-            with open(index_path, 'r', encoding='utf-8') as f:
-                return HTMLResponse(content=f.read(), status_code=200)
-    return HTMLResponse(content="""
-        <!DOCTYPE html>
-        <html>
-        <head><title>Accounting Helper API</title></head>
-        <body>
-            <h1>Accounting Helper API is running</h1>
-            <p>In development mode, please run the frontend separately.</p>
-            <p>In production, the frontend should be built and placed in the frontend/dist directory.</p>
-        </body>
-        </html>
-    """)
 
 @app.get("/api/health")
 async def health_check(delay: int = 0):
     """
     Health check endpoint to monitor the backend status.
     This endpoint can be called by the frontend to keep the instance awake.
-    
+
     Args:
         delay: Optional delay in seconds before responding (for testing)
     """
     import time
+
     if delay > 0:
         time.sleep(delay)
     return {
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "accounting-helper-api",
-        "version": "1.0.0"
+        "version": "1.0.0",
     }
-
-# Catch-all route to serve the frontend
-@app.get("/{full_path:path}")
-async def catch_all(full_path: str):
-    if IS_PRODUCTION and frontend_dist.exists():
-        # Try to serve the requested file if it exists
-        file_path = frontend_dist / full_path
-        if file_path.exists() and file_path.is_file():
-            return FileResponse(file_path)
-        # Otherwise serve index.html and let the frontend handle routing
-        index_path = frontend_dist / "index.html"
-        if index_path.exists():
-            with open(index_path, 'r', encoding='utf-8') as f:
-                return HTMLResponse(content=f.read(), status_code=200)
-    
-    # If we get here, return a 404
-    raise HTTPException(status_code=404, detail="Not found")
 
 
 @app.get("/api/template")
@@ -210,8 +213,10 @@ async def download_template(request: Request) -> Response:
             file_content = f.read()
 
         # Create the response with the file content
-        filename = f"accounting_template_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        
+        filename = (
+            f"accounting_template_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        )
+
         # Add CORS headers
         headers = {
             "Content-Disposition": f"attachment; filename={filename}",
@@ -219,7 +224,7 @@ async def download_template(request: Request) -> Response:
             "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
             "Access-Control-Allow-Credentials": "true",
         }
-        
+
         response = Response(
             content=file_content,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -231,8 +236,7 @@ async def download_template(request: Request) -> Response:
     except Exception as e:
         print(f"Error in download_template: {str(e)}")
         raise HTTPException(
-            status_code=500, 
-            detail=f"Error generating template: {str(e)}"
+            status_code=500, detail=f"Error generating template: {str(e)}"
         )
     finally:
         # Clean up the temporary file
@@ -241,6 +245,7 @@ async def download_template(request: Request) -> Response:
                 os.unlink(temp_path)
             except Exception as e:
                 print(f"Error cleaning up temp file: {e}")
+
 
 @app.post("/api/save")
 async def save_file(data: TemplateData, request: Request):
@@ -287,10 +292,10 @@ async def save_file(data: TemplateData, request: Request):
         if origin:
             # Check if the origin matches any of our allowed patterns
             for pattern in origins:
-                if pattern == "*" or origin.startswith(pattern.replace('*', '')):
+                if pattern == "*" or origin.startswith(pattern.replace("*", "")):
                     allowed_origin = origin
                     break
-        
+
         headers = {
             "Content-Disposition": f'attachment; filename="accounting_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"',
             "Access-Control-Allow-Origin": allowed_origin,
@@ -319,10 +324,10 @@ async def save_file(data: TemplateData, request: Request):
         if origin:
             # Check if the origin matches any of our allowed patterns
             for pattern in origins:
-                if pattern == "*" or origin.startswith(pattern.replace('*', '')):
+                if pattern == "*" or origin.startswith(pattern.replace("*", "")):
                     allowed_origin = origin
                     break
-        
+
         headers = {
             "Access-Control-Allow-Origin": allowed_origin,
             "Access-Control-Allow-Credentials": "true",
@@ -343,99 +348,10 @@ async def save_file(data: TemplateData, request: Request):
 
 
 # Helper functions
-def _process_excel_sheets(xls: pd.ExcelFile) -> List[Dict[str, Any]]:
-    """Process all sheets in the Excel file and return account data."""
-    accounts = []
-    required_columns = ["Tanggal", "Uraian", "Jumlah"]
-
-    for sheet_name in xls.sheet_names:
-        try:
-            df = pd.read_excel(xls, sheet_name=sheet_name).fillna("")
-
-            # Check for required columns
-            if not all(col in df.columns for col in required_columns):
-                continue
-
-            # Get all Penerimaan and Pengeluaran columns
-            penerimaan_cols = [
-                col for col in df.columns if col.startswith("Penerimaan_")
-            ]
-            pengeluaran_cols = [
-                col for col in df.columns if col.startswith("Pengeluaran_")
-            ]
-
-            transactions = _process_transactions(df, penerimaan_cols, pengeluaran_cols)
-            accounts.append({"name": sheet_name, "transactions": transactions})
-        except Exception as e:
-            print(f"Error processing sheet '{sheet_name}': {str(e)}")
-            continue
-
-    return accounts
-
-
-def _process_transactions(
-    df: pd.DataFrame, penerimaan_cols: List[str], pengeluaran_cols: List[str]
-) -> List[Dict[str, Any]]:
-    """Convert DataFrame rows to transaction dictionaries with dynamic columns."""
-    transactions = []
-    running_balance = 0.0
-
-    for _, row in df.iterrows():
-        try:
-            # Calculate total penerimaan and pengeluaran for this transaction
-            total_penerimaan = 0.0
-            total_pengeluaran = 0.0
-            
-            # Process Penerimaan
-            penerimaan = {}
-            for col in penerimaan_cols:
-                value = row[col]
-                if pd.notna(value) and value != "" and float(value) != 0:
-                    category = col.replace("Penerimaan_", "")
-                    amount = float(value)
-                    penerimaan[category] = amount
-                    total_penerimaan += amount
-
-            # Process Pengeluaran
-            pengeluaran = {}
-            for col in pengeluaran_cols:
-                value = row[col]
-                if pd.notna(value) and value != "" and float(value) != 0:
-                    category = col.replace("Pengeluaran_", "")
-                    amount = float(value)
-                    pengeluaran[category] = amount
-                    total_pengeluaran += amount
-
-            # Calculate running balance
-            running_balance = running_balance + total_penerimaan - total_pengeluaran
-            
-            # Get jumlah from the row if it exists, otherwise use running_balance
-            jumlah = float(row["Jumlah"]) if "Jumlah" in row and pd.notna(row["Jumlah"]) else running_balance
-            
-            # Create transaction
-            transaction = {
-                "tanggal": row["Tanggal"].strftime("%Y-%m-%d")
-                if pd.notna(row["Tanggal"])
-                else "",
-                "uraian": str(row["Uraian"]) if pd.notna(row["Uraian"]) else "",
-                "penerimaan": penerimaan,
-                "pengeluaran": pengeluaran,
-                "jumlah": jumlah,
-                "saldo_berjalan": running_balance  # Add running balance
-            }
-            transactions.append(transaction)
-
-        except Exception as e:
-            print(f"Error processing row {_ + 1}: {str(e)}")
-            continue
-
-    return transactions
-
-
 def _create_excel_file(data: TemplateData, output_path: str) -> None:
     """
     Create an Excel file from the template data with dynamic columns.
-    
+
     The Excel file will have consistent formatting with the template, including:
     - Proper number formatting for currency values
     - Auto-adjusted column widths
@@ -452,6 +368,7 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
             print("Warning: No accounts found in data")
             # Create a new workbook and save it
             from openpyxl import Workbook
+
             wb = Workbook()
             ws = wb.active
             ws.title = "Data"
@@ -462,9 +379,9 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
 
         # Create a new workbook
         from openpyxl import Workbook
-        
+
         wb = Workbook()
-        
+
         # Remove the default sheet created by openpyxl
         for sheet in wb.sheetnames:
             wb.remove(wb[sheet])
@@ -480,15 +397,25 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
                 # Create a DataFrame with all transactions
                 rows = []
                 running_balance = 0.0
-                
+
                 for tx in account.transactions or []:
                     # Calculate total penerimaan and pengeluaran for this transaction
-                    total_penerimaan = sum((tx.penerimaan or {}).values()) if hasattr(tx, 'penerimaan') else 0.0
-                    total_pengeluaran = sum((tx.pengeluaran or {}).values()) if hasattr(tx, 'pengeluaran') else 0.0
-                    
+                    total_penerimaan = (
+                        sum((tx.penerimaan or {}).values())
+                        if hasattr(tx, "penerimaan")
+                        else 0.0
+                    )
+                    total_pengeluaran = (
+                        sum((tx.pengeluaran or {}).values())
+                        if hasattr(tx, "pengeluaran")
+                        else 0.0
+                    )
+
                     # Calculate running balance
-                    running_balance = running_balance + total_penerimaan - total_pengeluaran
-                    
+                    running_balance = (
+                        running_balance + total_penerimaan - total_pengeluaran
+                    )
+
                     row = {
                         "Tanggal": getattr(tx, "tanggal", ""),
                         "Uraian": getattr(tx, "uraian", ""),
@@ -524,7 +451,9 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
                     sorted([col for col in df.columns if col.startswith("Penerimaan_")])
                 )
                 columns_order.extend(
-                    sorted([col for col in df.columns if col.startswith("Pengeluaran_")])
+                    sorted(
+                        [col for col in df.columns if col.startswith("Pengeluaran_")]
+                    )
                 )
                 if "Jumlah" in df.columns:
                     columns_order.append("Jumlah")
@@ -538,63 +467,73 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
                 # Create a new worksheet for this account
                 sheet_name = account.name[:31]  # Excel sheet name limit
                 ws = wb.create_sheet(title=sheet_name)
-                
+
                 # Define fills for different header types
-                default_fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
-                penerimaan_fill = PatternFill(start_color="E6F7E6", end_color="E6F7E6", fill_type="solid")  # Light green
-                pengeluaran_fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")  # Light red
-                
+                default_fill = PatternFill(
+                    start_color="FFFFFF", end_color="FFFFFF", fill_type="solid"
+                )
+                penerimaan_fill = PatternFill(
+                    start_color="E6F7E6", end_color="E6F7E6", fill_type="solid"
+                )  # Light green
+                pengeluaran_fill = PatternFill(
+                    start_color="FFE6E6", end_color="FFE6E6", fill_type="solid"
+                )  # Light red
+
                 # Define border style
                 thin_border = Border(
-                    left=Side(style='thin'),
-                    right=Side(style='thin'),
-                    top=Side(style='thin'),
-                    bottom=Side(style='thin')
+                    left=Side(style="thin"),
+                    right=Side(style="thin"),
+                    top=Side(style="thin"),
+                    bottom=Side(style="thin"),
                 )
-                
+
                 # Write the header row
                 ws.append(columns_order)
-                
+
                 # Write the data rows first
                 for _, row in df.iterrows():
                     ws.append(row.tolist())
-                
+
                 # Now apply header formatting after all data is written
                 for col_num, column_title in enumerate(columns_order, 1):
                     cell = ws.cell(row=1, column=col_num)
-                    if str(column_title).startswith('Penerimaan_'):
+                    if str(column_title).startswith("Penerimaan_"):
                         cell.fill = penerimaan_fill
-                    elif str(column_title).startswith('Pengeluaran_'):
+                    elif str(column_title).startswith("Pengeluaran_"):
                         cell.fill = pengeluaran_fill
                     else:
                         cell.fill = default_fill
-                    
+
                     cell.font = Font(bold=True)
                     cell.border = thin_border
-                
+
                 # Format data cells
-                for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=len(columns_order)):
+                for row in ws.iter_rows(
+                    min_row=2, max_row=ws.max_row, min_col=1, max_col=len(columns_order)
+                ):
                     for cell in row:
                         cell.border = thin_border
                         # Format numeric cells (all except first two columns)
-                        if cell.column_letter not in ['A', 'B'] and isinstance(cell.value, (int, float)):
-                            cell.number_format = '#,##0_);(#,##0)'
-                
+                        if cell.column_letter not in ["A", "B"] and isinstance(
+                            cell.value, (int, float)
+                        ):
+                            cell.number_format = "#,##0_);(#,##0)"
+
                 # Set column widths
                 for idx, column in enumerate(columns_order, 1):
                     col_letter = get_column_letter(idx)
-                    if column == 'Uraian':
+                    if column == "Uraian":
                         ws.column_dimensions[col_letter].width = 40
-                    elif column == 'Tanggal':
+                    elif column == "Tanggal":
                         ws.column_dimensions[col_letter].width = 12
-                    elif column == 'Saldo Berjalan':
+                    elif column == "Saldo Berjalan":
                         ws.column_dimensions[col_letter].width = 15
                     else:
                         ws.column_dimensions[col_letter].width = 18
-                
+
                 # Freeze the header row
-                ws.freeze_panes = 'A2'
-                
+                ws.freeze_panes = "A2"
+
                 # Add filters to the header row
                 ws.auto_filter.ref = f"A1:{get_column_letter(len(columns_order))}1"
 
@@ -603,15 +542,16 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
                     f"Error processing account {getattr(account, 'name', 'unknown')}: {str(e)}"
                 )
                 import traceback
+
                 traceback.print_exc()
                 continue
-        
+
         # If no worksheets were created, add a default one
         if len(wb.sheetnames) == 0:
             ws = wb.create_sheet("Data")
             ws.append(["Message"])
             ws.append(["No valid data to export"])
-        
+
         # Save the workbook
         wb.save(output_path)
         print(f"Successfully saved Excel file to {output_path}")
@@ -619,8 +559,31 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
     except Exception as e:
         print(f"\n!!! Error in _create_excel_file: {str(e)}")
         import traceback
+
         traceback.print_exc()
         raise
+
+
+# Catch-all route to serve the frontend - must be the last route
+@app.get("/{full_path:path}")
+async def catch_all(full_path: str):
+    if IS_PRODUCTION and frontend_path.exists():
+        # Don't handle API routes here - they should be handled by FastAPI
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API route not found")
+
+        # Try to serve the requested file if it exists
+        file_path = frontend_path / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+
+        # For SPA routing, return index.html for any non-existent path
+        index_path = frontend_path / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+
+    # If we get here, return a 404
+    raise HTTPException(status_code=404, detail="Not found")
 
 
 if __name__ == "__main__":
