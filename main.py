@@ -47,7 +47,15 @@ app.add_middleware(
     allow_origin_regex='https://.*\.vercel\.app$',  # Regex for Vercel preview URLs
     allow_credentials=True,
     allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
+    allow_headers=[
+        "*",  # Allow all headers
+        "Cache-Control",
+        "Pragma",
+        "Expires",
+        "Content-Type",
+        "Authorization",
+        "Content-Disposition"
+    ],
     expose_headers=["Content-Disposition", "Content-Type"],  # Expose additional headers
     max_age=86400,  # Cache preflight requests for 24 hours
 )
@@ -67,7 +75,7 @@ async def options_middleware(request: Request, call_next):
             headers={
                 "Access-Control-Allow-Origin": origin or "https://business-accounting-app-two.vercel.app",
                 "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization, Content-Disposition",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization, Content-Disposition, Cache-Control, Pragma, Expires",
                 "Access-Control-Allow-Credentials": "true",
                 "Access-Control-Max-Age": "86400",
                 "Access-Control-Expose-Headers": "Content-Disposition"
