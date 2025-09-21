@@ -2,17 +2,22 @@ import axios from 'axios';
 
 // Get the current hostname to determine the environment
 const getApiBaseUrl = () => {
-  // If VITE_API_URL is explicitly set, use it (takes highest precedence)
+  console.log('Environment Variables:', {
+    VITE_API_URL: import.meta.env.VITE_API_URL,
+    PROD: import.meta.env.PROD,
+    MODE: import.meta.env.MODE,
+    DEV: import.meta.env.DEV
+  });
+
+  // Rest of your function remains the same
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
 
-  // In production, use the production backend URL
   if (import.meta.env.PROD) {
     return 'https://business-accounting-app.onrender.com';
   }
 
-  // Default to local development
   return 'http://localhost:8000';
 };
 
