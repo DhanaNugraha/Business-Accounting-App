@@ -31,9 +31,9 @@ app = FastAPI(
 print("Running in API-only mode")
 
 # Allowed origins for CORS
-# Add your Vercel domain here after deployment
 origins = [
-    "https://*.vercel.app",  # This will allow all Vercel preview and production URLs
+    "https://business-accounting-app-two.vercel.app",  # Your Vercel production URL
+    "https://*.vercel.app",  # All Vercel preview deployments
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8000",
@@ -44,52 +44,38 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex='https://.*\.vercel\.app$',  # Regex for Vercel preview URLs
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["Content-Disposition"],  # Important for file downloads
-    max_age=86400,  # 24 hours
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["Content-Disposition", "Content-Type"],  # Expose additional headers
+    max_age=86400,  # Cache preflight requests for 24 hours
 )
 
 
-# Add OPTIONS routes for CORS preflight
-@app.options("/api/save")
-async def options_save(request: Request):
-    origin = request.headers.get("origin")
-    if origin not in origins and origin is not None:
-        origin = "https://business-accounting-app.onrender.com"
-
-    return JSONResponse(
-        content={"message": "OK"},
-        headers={
-            "Access-Control-Allow-Origin": origin
-            or "https://business-accounting-app.onrender.com",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Max-Age": "86400",
-        },
-    )
-
-
-@app.options("/api/template")
-async def options_template(request: Request):
-    origin = request.headers.get("origin")
-    if origin not in origins and origin is not None:
-        origin = "https://business-accounting-app.onrender.com"
-
-    return JSONResponse(
-        content={"message": "OK"},
-        headers={
-            "Access-Control-Allow-Origin": origin
-            or "https://business-accounting-app.onrender.com",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Credentials": "true",
-            "Access-Control-Expose-Headers": "Content-Disposition",
-            "Access-Control-Max-Age": "86400",
-        },
-    )
+# Global OPTIONS handler for all /api/* routes
+@app.middleware("http")
+async def options_middleware(request: Request, call_next):
+    # Only handle OPTIONS requests for API routes
+    if request.method == "OPTIONS" and request.url.path.startswith("/api/"):
+        origin = request.headers.get("origin")
+        if origin not in origins and origin is not None:
+            origin = "https://business-accounting-app-two.vercel.app"
+            
+        return JSONResponse(
+            content={"message": "OK"},
+            headers={
+                "Access-Control-Allow-Origin": origin or "https://business-accounting-app-two.vercel.app",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type, Authorization, Content-Disposition",
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Max-Age": "86400",
+                "Access-Control-Expose-Headers": "Content-Disposition"
+            },
+        )
+    
+    # For non-OPTIONS requests, proceed as normal
+    return await call_next(request)
 
 
 # Utility functions
