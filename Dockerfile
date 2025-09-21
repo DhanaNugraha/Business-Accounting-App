@@ -8,26 +8,18 @@ WORKDIR /app/frontend
 # Copy package files first for better caching
 COPY frontend/package*.json ./
 
-# Copy the rest of the frontend files
-COPY frontend/ .
-
-# Remove the postinstall script to prevent it from running
-RUN npm pkg delete scripts.postinstall
-
 # Install dependencies
 RUN npm install --legacy-peer-deps
 
+# Copy the rest of the frontend files
+COPY frontend/ .
+
 # Set environment for production build
 ENV NODE_ENV=production
-
-# Set the API base URL for production
-ENV VITE_API_BASE_URL=https://business-accounting-app.onrender.com
+VITE_API_BASE_URL=https://business-accounting-app.onrender.com
 
 # Build the frontend
 RUN npm run build
-
-# Verify the build output
-RUN ls -la /app/frontend/dist
 
 # ===========================================
 # Production stage - Backend + Frontend
@@ -47,6 +39,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Set work directory
 WORKDIR /app
+
+# Copy frontend build from builder stage
+COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
 # Install Python dependencies
 COPY requirements.txt .

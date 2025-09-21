@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException, Response, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import pandas as pd
@@ -10,9 +12,21 @@ import os
 import generate_template
 from openpyxl.styles import PatternFill, Font, Border, Side
 from openpyxl.utils import get_column_letter
+from pathlib import Path
+
+# Determine if we're in production (running in Docker)
+IS_PRODUCTION = os.environ.get('NODE_ENV') == 'production'
 
 # Initialize FastAPI app
-app = FastAPI(title="Accounting Helper API")
+app = FastAPI(title="Accounting Helper API", docs_url="/api/docs", openapi_url="/api/openapi.json")
+
+# Set up paths for static files and templates
+frontend_dist = Path(__file__).parent / "frontend" / "dist"
+
+# In production, mount static files if they exist
+if IS_PRODUCTION and frontend_dist.exists():
+    app.mount("/static", StaticFiles(directory=frontend_dist / "assets"), name="static")
+    templates = Jinja2Templates(directory=str(frontend_dist))
 
 # Allowed origins for CORS
 origins = [
@@ -116,6 +130,24 @@ async def root():
     """Root endpoint to check if the API is running."""
     return {"message": "Accounting Helper API is running", "status": "ok"}
 
+@app.get("/", response_class=HTMLResponse)
+async def serve_frontend():
+    if IS_PRODUCTION and frontend_dist.exists():
+        index_path = frontend_dist / "index.html"
+        if index_path.exists():
+            with open(index_path, 'r', encoding='utf-8') as f:
+                return HTMLResponse(content=f.read(), status_code=200)
+    return HTMLResponse(content="""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Accounting Helper API</title></head>
+        <body>
+            <h1>Accounting Helper API is running</h1>
+            <p>In development mode, please run the frontend separately.</p>
+            <p>In production, the frontend should be built and placed in the frontend/dist directory.</p>
+        </body>
+        </html>
+    """)
 
 @app.get("/api/health")
 async def health_check(delay: int = 0):
@@ -126,16 +158,32 @@ async def health_check(delay: int = 0):
     Args:
         delay: Optional delay in seconds before responding (for testing)
     """
+    import time
     if delay > 0:
-        import asyncio
-        await asyncio.sleep(delay)
-        
+        time.sleep(delay)
     return {
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
         "service": "accounting-helper-api",
         "version": "1.0.0"
     }
+
+# Catch-all route to serve the frontend
+@app.get("/{full_path:path}")
+async def catch_all(full_path: str):
+    if IS_PRODUCTION and frontend_dist.exists():
+        # Try to serve the requested file if it exists
+        file_path = frontend_dist / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+        # Otherwise serve index.html and let the frontend handle routing
+        index_path = frontend_dist / "index.html"
+        if index_path.exists():
+            with open(index_path, 'r', encoding='utf-8') as f:
+                return HTMLResponse(content=f.read(), status_code=200)
+    
+    # If we get here, return a 404
+    raise HTTPException(status_code=404, detail="Not found")
 
 
 @app.get("/api/template")
