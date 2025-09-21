@@ -18,6 +18,7 @@ export default defineConfig({
     }),
     tsconfigPaths(),
   ],
+  
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -30,6 +31,7 @@ export default defineConfig({
       'path': 'path-browserify',
     },
   },
+  
   server: {
     port: 3000,
     open: true,
@@ -41,6 +43,7 @@ export default defineConfig({
       },
     },
   },
+  
   build: {
     outDir: 'dist',
     sourcemap: true,
@@ -49,30 +52,10 @@ export default defineConfig({
       transformMixedEsModules: true,
     },
   },
+  
   define: {
     'process.env': {},
     'process.browser': true,
     global: 'globalThis',
-  },
-  optimizeDeps: {
-    include: [
-      'react',
-      'react-dom',
-      'react-router-dom',
-      'xlsx',
-      'crypto-browserify',
-      'stream-browserify',
-      'util',
-      'buffer',
-      'process',
-    ],
-    esbuildOptions: {
-      // Node.js global to browser globalThis
-      define: {
-        global: 'globalThis',
-      },
-      // Enable esbuild polyfill for Node.js globals
-      target: 'es2020',
-    },
   },
 });

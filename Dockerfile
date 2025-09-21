@@ -7,10 +7,17 @@ WORKDIR /app/frontend
 
 # Install dependencies first for better caching
 COPY frontend/package*.json ./
-RUN npm ci
+
+# Use npm install instead of npm ci for better compatibility
+RUN npm install --legacy-peer-deps
 
 # Copy source and build
 COPY frontend/ .
+
+# Set environment for production build
+ENV NODE_ENV=production
+
+# Build the frontend
 RUN npm run build
 
 # ===========================================
