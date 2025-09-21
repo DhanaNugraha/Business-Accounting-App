@@ -32,10 +32,12 @@ export default defineConfig({
     },
   },
   
+  // Server configuration for local development
   server: {
     port: 3000,
     open: true,
     proxy: {
+      // In development, proxy API requests to the local backend
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
@@ -44,9 +46,19 @@ export default defineConfig({
       },
     },
   },
+  // Preview configuration (used by 'vite preview' command)
   preview: {
     port: 3000,
     strictPort: true,
+    proxy: {
+      // In preview mode, proxy API requests to the production backend
+      '/api': {
+        target: 'https://your-render-backend.onrender.com',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      },
+    },
   },
   
   build: {

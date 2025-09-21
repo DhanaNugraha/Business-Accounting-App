@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: business-accounting-app
-    env: docker
-    build:
-      dockerfile: Dockerfile
+    name: business-accounting-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
@@ -11,17 +11,10 @@ services:
         value: "1"
       - key: PORT
         value: "10000"
-      - key: NODE_ENV
-        value: "production"
-      - key: VITE_API_BASE_URL
-        value: "https://business-accounting-app.onrender.com"
     # Health check configuration
     healthCheckPath: /api/health
     # Auto-deploy from GitHub
     autoDeploy: true
-    # Resource allocation (adjust based on your needs)
+    # Resource allocation (free tier)
     plan: free
     numInstances: 1
-    # Build command (handled by Dockerfile)
-    buildCommand: ""
-    # Start command (handled by Dockerfile)

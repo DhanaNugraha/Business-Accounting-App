@@ -1,6 +1,6 @@
-# Deployment Guide for Render
+# Deployment Guide: Vercel (Frontend) + Render (Backend)
 
-This guide explains how to deploy the full-stack application on Render.com with both frontend and backend in a single service.
+This guide explains how to deploy the application with the frontend on Vercel and the backend on Render for optimal performance and scalability.
 
 ## Table of Contents
 1. [Prerequisites](#prerequisites)
@@ -12,89 +12,130 @@ This guide explains how to deploy the full-stack application on Render.com with 
 ## Prerequisites
 
 1. A GitHub account with your code pushed to a repository
-2. A Render.com account (free tier available)
-3. Python 3.10+ and Node.js 18+ installed locally for development
+2. A Vercel account (free tier available) for frontend hosting
+3. A Render.com account (free tier available) for backend hosting
+4. Python 3.10+ and Node.js 18+ installed locally for development
 
-## Deployment Steps
+## Backend Deployment (Render)
 
-1. **Prepare Your Repository**
-   - Make sure your code is pushed to a GitHub repository
-   - Ensure you have the following files in your repository:
-     - `Dockerfile` (already configured)
-     - `render.yaml` (already configured)
-     - `requirements.txt` (Python dependencies)
-     - `frontend/package.json` (Frontend dependencies)
-
-2. **Deploy to Render**
+1. **Deploy Backend to Render**
    - Log in to your [Render](https://render.com) account
    - Click "New" and select "Web Service"
    - Connect your GitHub repository
    - Configure the service:
-     - Name: `business-accounting-app` (or your preferred name)
+     - Name: `business-accounting-backend` (or your preferred name)
      - Region: Choose the one closest to your users
      - Branch: `main` (or your default branch)
      - Root Directory: `.` (root of the repository)
-     - Build Command: `cd frontend && npm install && npm run build`
+     - Build Command: `pip install -r requirements.txt`
      - Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1`
    - Click "Create Web Service"
 
-3. **Configure Environment Variables**
+2. **Configure Backend Environment Variables**
    - In your Render dashboard, go to the "Environment" tab
    - Add the following environment variables:
      - `PYTHONUNBUFFERED`: `1`
      - `PYTHONDONTWRITEBYTECODE`: `1`
-     - `NODE_ENV`: `production`
      - `PORT`: `10000` (this will be overridden by Render)
    - Click "Save Changes"
 
-4. **Deploy**
-   - Render will automatically start building and deploying your application
-   - You can monitor the build logs in the "Logs" tab
-   - Once deployed, your app will be available at `https://your-app-name.onrender.com`
+3. **Get Backend URL**
+   - After deployment, note your backend URL (e.g., `https://your-app-backend.onrender.com`)
+   - Update the following files with your backend URL:
+     - `frontend/src/services/api.ts`
+     - `frontend/vite.config.ts` (in the preview.proxy section)
+
+## Frontend Deployment (Vercel)
+
+1. **Deploy Frontend to Vercel**
+   - Log in to your [Vercel](https://vercel.com) account
+   - Click "Add New..." > "Project"
+   - Import your GitHub repository
+   - In the project settings:
+     - Root Directory: `frontend`
+     - Build Command: `npm run build`
+     - Output Directory: `dist`
+     - Install Command: `npm install`
+   - Add the following environment variable:
+     - `VITE_API_BASE_URL`: `https://your-app-backend.onrender.com` (use your actual backend URL)
+   - Click "Deploy"
+
+2. **Configure Custom Domain (Optional)**
+   - In your Vercel dashboard, go to the "Domains" section
+   - Add your custom domain if desired
+   - Update the CORS settings in your backend to include this domain
 
 ## Environment Variables
 
-Here are the important environment variables used by the application:
+### Backend (Render)
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `PORT` | Port the server listens on | Yes |
+| `PYTHONUNBUFFERED` | Enable unbuffered Python output | No |
+| `PYTHONDONTWRITEBYTECODE` | Prevent Python from writing .pyc files | No |
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `PORT` | Port the server listens on | `10000` | Yes |
-| `NODE_ENV` | Environment mode (`development` or `production`) | `production` | No |
-| `PYTHONUNBUFFERED` | Enable unbuffered Python output | `1` | No |
-| `PYTHONDONTWRITEBYTECODE` | Prevent Python from writing .pyc files | `1` | No |
+### Frontend (Vercel)
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `VITE_API_BASE_URL` | Base URL of your Render backend | Yes |
+| `NODE_ENV` | Environment mode (`development` or `production`) | No |
 
 ## Troubleshooting
 
-1. **Build Fails**
+### Backend Issues
+1. **Build Fails on Render**
    - Check the build logs in the Render dashboard
    - Common issues:
-     - Missing dependencies in `requirements.txt` or `package.json`
+     - Missing dependencies in `requirements.txt`
      - Build timeout (free tier has a 15-minute limit)
-     - Insufficient memory (upgrade to a paid plan if needed)
+     - Python version mismatch (ensure it matches your local environment)
 
-2. **Application Crashes**
-   - Check the application logs in the Render dashboard
+2. **Backend Crashes**
+   - Check the logs in the Render dashboard
    - Common issues:
-     - Port binding issues (make sure to use `$PORT` environment variable)
+     - Port binding issues (ensure using `$PORT` environment variable)
      - Missing environment variables
-     - Database connection issues (if using a database in the future)
+     - CORS errors (check allowed origins in `main.py`)
 
-3. **CORS Errors**
-   - The application is configured to allow requests from common origins
-   - If you need to add more origins, update the `origins` list in `main.py`
+### Frontend Issues
+1. **Build Fails on Vercel**
+   - Check the build logs in the Vercel dashboard
+   - Common issues:
+     - Missing dependencies in `package.json`
+     - Build timeout (increase build timeout in Vercel settings if needed)
+
+2. **API Connection Issues**
+   - Verify `VITE_API_BASE_URL` is correctly set in Vercel environment variables
+   - Check browser's developer console for CORS errors
+   - Ensure the backend URL is accessible from the browser
 
 ## Scaling
 
+### Backend (Render)
 1. **Free Tier**
    - 512 MB RAM
    - Shared CPU
    - Automatic sleep after 15 minutes of inactivity
+   - Limited to 750 hours/month
 
 2. **Paid Plans**
    - More RAM and CPU options
    - Always-on instances
    - Auto-scaling
    - Custom domains with SSL
+
+### Frontend (Vercel)
+1. **Free Tier**
+   - Automatic HTTPS
+   - Global CDN
+   - Automatic deployments from Git
+   - Custom domains
+
+2. **Pro Plan**
+   - More build minutes
+   - More bandwidth
+   - Team features
+   - Advanced analytics
    
    app = FastAPI()
    

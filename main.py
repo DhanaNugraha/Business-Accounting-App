@@ -1,17 +1,20 @@
-from fastapi import FastAPI, HTTPException, Response, Request
-from fastapi.responses import JSONResponse, FileResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from typing import List, Dict, Optional
-import pandas as pd
-from datetime import datetime
-import tempfile
+# Standard library imports
 import os
-import generate_template
+import tempfile
+from datetime import datetime
+from typing import List, Dict, Optional
+
+# Third-party imports
+import pandas as pd
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from openpyxl.styles import PatternFill, Font, Border, Side
 from openpyxl.utils import get_column_letter
-from pathlib import Path
+from pydantic import BaseModel
+
+# Local imports
+import generate_template
 
 # Determine if we're in production (running in Docker)
 IS_PRODUCTION = os.environ.get("NODE_ENV") == "production"
@@ -24,50 +27,13 @@ app = FastAPI(
     title="Accounting Helper API", docs_url="/api/docs", openapi_url="/api/openapi.json"
 )
 
-# Set up paths for static files
-frontend_path = Path(__file__).parent / "frontend" / "dist"
-
-# Serve static files for frontend
-if frontend_path.exists():
-    # Mount static files under /static
-    app.mount(
-        "/static", StaticFiles(directory=str(frontend_path), html=True), name="static"
-    )
-
-    # Serve the index.html for the root path
-    @app.get("/")
-    async def serve_index():
-        index_path = frontend_path / "index.html"
-        if not index_path.exists():
-            raise HTTPException(status_code=404, detail="Frontend not found")
-        return FileResponse(index_path)
-
-    # Serve other static files
-    @app.get("/{full_path:path}")
-    async def serve_static(full_path: str):
-        # Don't handle API routes here
-        if full_path.startswith("api/"):
-            raise HTTPException(status_code=404, detail="API route not found")
-
-        # Check if the requested file exists
-        file_path = frontend_path / full_path
-        if file_path.exists() and file_path.is_file():
-            return FileResponse(file_path)
-
-        # For SPA routing, return index.html for any non-existent path
-        index_path = frontend_path / "index.html"
-        if index_path.exists():
-            return FileResponse(index_path)
-
-        raise HTTPException(status_code=404, detail="File not found")
-
-    print(f"Serving static files from '{frontend_path}' directory")
-else:
-    print("Note: 'dist' directory not found. Running in API-only mode.")
+# API-only mode
+print("Running in API-only mode")
 
 # Allowed origins for CORS
+# Add your Vercel domain here after deployment
 origins = [
-    "https://business-accounting-app.onrender.com",
+    "https://*.vercel.app",  # This will allow all Vercel preview and production URLs
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8000",
@@ -167,7 +133,7 @@ class TemplateData(BaseModel):
 
 
 # API Endpoints
-@app.get("/api")
+@app.get("/")
 async def root():
     """Root endpoint to check if the API is running."""
     return {"message": "Accounting Helper API is running", "status": "ok"}
@@ -569,29 +535,9 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
         raise
 
 
-# Catch-all route to serve the frontend - must be the last route
-@app.get("/{full_path:path}")
-async def catch_all(full_path: str):
-    if IS_PRODUCTION and frontend_path.exists():
-        # Don't handle API routes here - they should be handled by FastAPI
-        if full_path.startswith("api/"):
-            raise HTTPException(status_code=404, detail="API route not found")
-
-        # Try to serve the requested file if it exists
-        file_path = frontend_path / full_path
-        if file_path.exists() and file_path.is_file():
-            return FileResponse(file_path)
-
-        # For SPA routing, return index.html for any non-existent path
-        index_path = frontend_path / "index.html"
-        if index_path.exists():
-            return FileResponse(index_path)
-
-    # If we get here, return a 404
-    raise HTTPException(status_code=404, detail="Not found")
-
-
 if __name__ == "__main__":
     import uvicorn
-
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    
+    # Use the PORT environment variable if available, otherwise default to 8000
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
