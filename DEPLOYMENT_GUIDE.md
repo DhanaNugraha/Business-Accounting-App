@@ -1,103 +1,100 @@
-# Deployment Guide
+# Deployment Guide for Render
 
-This guide explains how to deploy the application with the frontend on Vercel and the backend on PythonAnywhere.
+This guide explains how to deploy the full-stack application on Render.com with both frontend and backend in a single service.
 
 ## Table of Contents
-1. [Frontend Deployment (Vercel)](#frontend-deployment-vercel)
-2. [Backend Deployment (PythonAnywhere)](#backend-deployment-pythonanywhere)
-3. [Connecting Frontend to Backend](#connecting-frontend-to-backend)
+1. [Prerequisites](#prerequisites)
+2. [Deployment Steps](#deployment-steps)
+3. [Environment Variables](#environment-variables)
 4. [Troubleshooting](#troubleshooting)
+5. [Scaling](#scaling)
 
-## Frontend Deployment (Vercel)
+## Prerequisites
 
-1. **Push your code to a GitHub repository** (if not already done)
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin YOUR_REPOSITORY_URL
-   git push -u origin main
-   ```
+1. A GitHub account with your code pushed to a repository
+2. A Render.com account (free tier available)
+3. Python 3.10+ and Node.js 18+ installed locally for development
 
-2. **Deploy to Vercel**
-   - Go to [Vercel](https://vercel.com) and sign in with your GitHub account
-   - Click "Add New..." > "Project"
-   - Import your repository
-   - In the project settings:
-     - Set the root directory to `frontend`
-     - Set the build command to `npm run build`
-     - Set the output directory to `dist`
+## Deployment Steps
+
+1. **Prepare Your Repository**
+   - Make sure your code is pushed to a GitHub repository
+   - Ensure you have the following files in your repository:
+     - `Dockerfile` (already configured)
+     - `render.yaml` (already configured)
+     - `requirements.txt` (Python dependencies)
+     - `frontend/package.json` (Frontend dependencies)
+
+2. **Deploy to Render**
+   - Log in to your [Render](https://render.com) account
+   - Click "New" and select "Web Service"
+   - Connect your GitHub repository
+   - Configure the service:
+     - Name: `business-accounting-app` (or your preferred name)
+     - Region: Choose the one closest to your users
+     - Branch: `main` (or your default branch)
+     - Root Directory: `.` (root of the repository)
+     - Build Command: `cd frontend && npm install && npm run build`
+     - Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1`
+   - Click "Create Web Service"
+
+3. **Configure Environment Variables**
+   - In your Render dashboard, go to the "Environment" tab
    - Add the following environment variables:
-     - `VITE_API_BASE_URL`: Your PythonAnywhere backend URL (e.g., `https://yourusername.pythonanywhere.com`)
-   - Click "Deploy"
+     - `PYTHONUNBUFFERED`: `1`
+     - `PYTHONDONTWRITEBYTECODE`: `1`
+     - `NODE_ENV`: `production`
+     - `PORT`: `10000` (this will be overridden by Render)
+   - Click "Save Changes"
 
-## Backend Deployment (PythonAnywhere)
+4. **Deploy**
+   - Render will automatically start building and deploying your application
+   - You can monitor the build logs in the "Logs" tab
+   - Once deployed, your app will be available at `https://your-app-name.onrender.com`
 
-1. **Create a PythonAnywhere account**
-   - Go to [PythonAnywhere](https://www.pythonanywhere.com/)
-   - Create a free account (or log in if you already have one)
+## Environment Variables
 
-2. **Set up a new web app**
-   - Go to the "Web" tab
-   - Click "Add a new web app"
-   - Choose "Manual Configuration" (not "Flask" or "Django")
-   - Select Python 3.10 (or the version you're using)
-   - Click "Next"
+Here are the important environment variables used by the application:
 
-3. **Upload your code**
-   - In the "Files" tab, navigate to `/home/yourusername/`
-   - Upload your project files or clone your repository:
-     ```bash
-     git clone YOUR_REPOSITORY_URL
-     ```
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `PORT` | Port the server listens on | `10000` | Yes |
+| `NODE_ENV` | Environment mode (`development` or `production`) | `production` | No |
+| `PYTHONUNBUFFERED` | Enable unbuffered Python output | `1` | No |
+| `PYTHONDONTWRITEBYTECODE` | Prevent Python from writing .pyc files | `1` | No |
 
-4. **Set up a virtual environment**
-   - In the "Consoles" tab, open a new Bash console
-   - Navigate to your project directory
-   - Create a virtual environment:
-     ```bash
-     python -m venv venv
-     source venv/bin/activate
-     pip install -r requirements.txt
-     ```
+## Troubleshooting
 
-5. **Configure the WSGI file**
-   - In the "Web" tab, click on the WSGI configuration file link
-   - Replace the contents with:
-     ```python
-     import sys
-     import os
-     
-     # Add your project directory to the Python path
-     project_home = '/home/yourusername/your-project-directory'
-     if project_home not in sys.path:
-         sys.path.append(project_home)
-     
-     # Set environment variables
-     os.environ['PYTHONUNBUFFERED'] = '1'
-     
-     # Import your FastAPI app
-     from main import app as application  # noqa
-     ```
-   - Save the file
+1. **Build Fails**
+   - Check the build logs in the Render dashboard
+   - Common issues:
+     - Missing dependencies in `requirements.txt` or `package.json`
+     - Build timeout (free tier has a 15-minute limit)
+     - Insufficient memory (upgrade to a paid plan if needed)
 
-6. **Configure static files**
-   - In the "Web" tab, scroll down to "Static files"
-   - Add a new mapping:
-     - URL: `/static`
-     - Directory: `/home/yourusername/your-project-directory/static`
+2. **Application Crashes**
+   - Check the application logs in the Render dashboard
+   - Common issues:
+     - Port binding issues (make sure to use `$PORT` environment variable)
+     - Missing environment variables
+     - Database connection issues (if using a database in the future)
 
-7. **Start the web app**
-   - In the "Web" tab, click the green "Reload" button
-   - Your app should now be running at `https://yourusername.pythonanywhere.com`
+3. **CORS Errors**
+   - The application is configured to allow requests from common origins
+   - If you need to add more origins, update the `origins` list in `main.py`
 
-## Connecting Frontend to Backend
+## Scaling
 
-1. **Update CORS in your FastAPI app**
-   Make sure your `main.py` has CORS middleware configured to accept requests from your Vercel domain:
-   ```python
-   from fastapi.middleware.cors import CORSMiddleware
+1. **Free Tier**
+   - 512 MB RAM
+   - Shared CPU
+   - Automatic sleep after 15 minutes of inactivity
+
+2. **Paid Plans**
+   - More RAM and CPU options
+   - Always-on instances
+   - Auto-scaling
+   - Custom domains with SSL
    
    app = FastAPI()
    

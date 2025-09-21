@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
 import pandas as pd
 from datetime import datetime
 import tempfile
@@ -15,6 +15,9 @@ from pathlib import Path
 
 # Determine if we're in production (running in Docker)
 IS_PRODUCTION = os.environ.get("NODE_ENV") == "production"
+
+# Get port from environment variable or use default
+PORT = int(os.environ.get("PORT", 8000))
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -67,6 +70,8 @@ origins = [
     "https://business-accounting-app.onrender.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
 
 # Enable CORS with dynamic origin handling

@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+// In production, use relative URLs to avoid CORS issues
+// The Vite proxy will handle the request to the correct backend
+const API_BASE_URL = import.meta.env.PROD 
+  ? '' // Relative URL in production (same domain as frontend)
+  : 'http://localhost:8000'; // Local development
 
 // Check if we're in development mode using Vite's environment variables
 const isDevelopment = import.meta.env.DEV;

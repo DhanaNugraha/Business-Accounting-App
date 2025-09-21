@@ -40,8 +40,13 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
         secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '')
       },
     },
+  },
+  preview: {
+    port: 3000,
+    strictPort: true,
   },
   
   build: {
@@ -54,6 +59,10 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          vendor: ['axios', 'date-fns', 'react-datepicker'],
+        },
         // Ensure consistent hashing for better caching
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
