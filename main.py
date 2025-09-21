@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Response, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -17,23 +17,19 @@ from openpyxl.utils import get_column_letter
 # Initialize FastAPI app
 app = FastAPI(title="Accounting Helper API")
 
-# Allowed origins - update with your production domain
-ALLOWED_ORIGINS = [
+# Allowed origins for CORS
+origins = [
     "http://localhost:3000",
-    "http://localhost:3001",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-    "http://localhost:8000",
-    "https://*.onrender.com",  # Allow Render deployment
-    "https://*.vercel.app",    # Allow Vercel if you use it for frontend
-    "https://*-*.vercel.app",  # Allow Vercel preview deployments
-    "https://*-*-*.vercel.app" # Allow Vercel branch previews
+    "http://localhost:5173",
+    "http://localhost:10000",
+    "https://*.onrender.com",
+    "https://*.vercel.app"
 ]
 
 # Enable CORS with dynamic origin handling
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -57,9 +53,24 @@ async def options_save(request: Request):
     )
 
 
-# Mount static files for frontend if dist directory exists
-if Path("dist").exists():
-    app.mount("/static", StaticFiles(directory="dist"), name="static")
+# Serve static files for frontend
+frontend_path = Path("frontend/dist")
+if frontend_path.exists():
+    # Serve the frontend files
+    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+    
+    # Serve the index.html for all other routes (client-side routing)
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        if full_path.startswith("api/"):
+            # Let FastAPI handle API routes
+            raise HTTPException(status_code=404, detail="API route not found")
+        
+        index_path = frontend_path / "index.html"
+        if not index_path.exists():
+            raise HTTPException(status_code=404, detail="Frontend not found")
+            
+        return FileResponse(index_path)
     print("Serving static files from 'dist' directory")
 else:
     print("Note: 'dist' directory not found. Running in API-only mode.")
@@ -244,9 +255,18 @@ async def save_file(data: TemplateData, request: Request):
         origin = request.headers.get("origin", "*")
 
         # Create a response with the file content
+        # Check if the origin is in our allowed origins
+        allowed_origin = "*"
+        if origin:
+            # Check if the origin matches any of our allowed patterns
+            for pattern in origins:
+                if pattern == "*" or origin.startswith(pattern.replace('*', '')):
+                    allowed_origin = origin
+                    break
+        
         headers = {
             "Content-Disposition": f'attachment; filename="accounting_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"',
-            "Access-Control-Allow-Origin": origin if any(origin.startswith(allowed.replace('*', '')) for allowed in ALLOWED_ORIGINS) else "*",
+            "Access-Control-Allow-Origin": allowed_origin,
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Expose-Headers": "Content-Disposition",
         }
@@ -268,8 +288,16 @@ async def save_file(data: TemplateData, request: Request):
         origin = request.headers.get("origin", "*")
 
         # Include CORS headers in error response
+        allowed_origin = "*"
+        if origin:
+            # Check if the origin matches any of our allowed patterns
+            for pattern in origins:
+                if pattern == "*" or origin.startswith(pattern.replace('*', '')):
+                    allowed_origin = origin
+                    break
+        
         headers = {
-            "Access-Control-Allow-Origin": origin if any(origin.startswith(allowed.replace('*', '')) for allowed in ALLOWED_ORIGINS) else "*",
+            "Access-Control-Allow-Origin": allowed_origin,
             "Access-Control-Allow-Credentials": "true",
         }
 

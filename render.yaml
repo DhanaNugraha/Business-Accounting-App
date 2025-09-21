@@ -9,6 +9,17 @@ services:
         value: "1"
       - key: PYTHONDONTWRITEBYTECODE
         value: "1"
+      - key: PORT
+        value: "10000"
+      - key: NODE_ENV
+        value: "production"
+    # Health check configuration
+    healthCheckPath: /api/health
+    # Auto-deploy from GitHub
+    autoDeploy: true
+    # Resource allocation (adjust based on your needs)
     plan: free
     numInstances: 1
-    healthCheckPath: /
+    # Build command (handled by Dockerfile)
+    buildCommand: ""
+    # Start command (handled by Dockerfile)
