@@ -69,5 +69,5 @@ export default defineConfig({
   },
   
   // Ensure base is set correctly for production
-  base: process.env.NODE_ENV === 'production' ? '/' : '/',
+  base: process.env.NODE_ENV === 'production' ? '/static/' : '/',
 });

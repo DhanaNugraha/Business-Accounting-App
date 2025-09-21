@@ -56,21 +56,28 @@ async def options_save(request: Request):
 # Serve static files for frontend
 frontend_path = Path("frontend/dist")
 if frontend_path.exists():
-    # Mount the static files at the root
-    app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="static")
+    # Mount static files under /static
+    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
     
-    # Serve the index.html for all other routes (client-side routing)
+    # Serve the index.html for all non-API routes (client-side routing)
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
+        # Don't handle API routes here
         if full_path.startswith("api/"):
-            # Let FastAPI handle API routes
             raise HTTPException(status_code=404, detail="API route not found")
         
+        # Check if the requested file exists
+        file_path = frontend_path / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+            
+        # Default to index.html for SPA routing
         index_path = frontend_path / "index.html"
         if not index_path.exists():
             raise HTTPException(status_code=404, detail="Frontend not found")
             
         return FileResponse(index_path)
+    
     print("Serving static files from 'dist' directory")
 else:
     print("Note: 'dist' directory not found. Running in API-only mode.")
@@ -127,7 +134,7 @@ async def root():
 async def health_check(delay: int = 0):
     """
     Health check endpoint to monitor the backend status.
-    This endpoint can be called by the frontend to keep the Koyeb instance awake.
+    This endpoint can be called by the frontend to keep the instance awake.
     
     Args:
         delay: Optional delay in seconds before responding (for testing)
@@ -139,7 +146,8 @@ async def health_check(delay: int = 0):
     return {
         "status": "ok",
         "timestamp": datetime.utcnow().isoformat(),
-        "service": "accounting-helper-api"
+        "service": "accounting-helper-api",
+        "version": "1.0.0"
     }
 
 
