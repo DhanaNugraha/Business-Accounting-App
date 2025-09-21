@@ -11,8 +11,10 @@
   ],
   "routes": [
     {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
+      "src": "/assets/(.*)",
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable"
+      }
     },
     {
       "src": "/(.*)",
@@ -21,12 +23,8 @@
   ],
   "headers": [
     {
-      "source": "/assets/(.*)",
+      "source": "\\.(js|mjs|jsx|ts|tsx)$",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        },
         {
           "key": "Content-Type",
           "value": "application/javascript"
@@ -34,11 +32,29 @@
       ]
     },
     {
-      "source": "/(.*).js",
+      "source": "\\.(css)$",
       "headers": [
         {
           "key": "Content-Type",
-          "value": "application/javascript"
+          "value": "text/css"
+        }
+      ]
+    },
+    {
+      "source": "\\.(json)$",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
+    {
+      "source": "\\.(html)$",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/html"
         }
       ]
     }

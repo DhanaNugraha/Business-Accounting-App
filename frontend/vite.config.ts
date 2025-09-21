@@ -65,8 +65,10 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
     emptyOutDir: true,
-    // Ensure proper MIME types for Vercel
+    // Disable inlining to ensure files are served with correct MIME types
     assetsInlineLimit: 0,
+    // Ensure proper module type
+    manifest: true,
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true,
@@ -77,21 +79,10 @@ export default defineConfig({
           react: ['react', 'react-dom', 'react-router-dom'],
           vendor: ['axios', 'date-fns', 'react-datepicker'],
         },
-        // Consistent hashing with proper file extensions
+        // Simple and consistent file naming
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: (assetInfo) => {
-          // Ensure proper MIME types for all assets
-          if (!assetInfo.name) {
-            return 'assets/[name]-[hash][extname]';
-          }
-          const info = assetInfo.name.split('.');
-          const ext = info[info.length - 1];
-          if (ext === 'js' || ext === 'css' || ext === 'html' || ext === 'json') {
-            return `assets/[name]-[hash].${ext}`;
-          }
-          return 'assets/[name]-[hash][extname]';
-        },
+        assetFileNames: 'assets/[name]-[hash][extname]',
       },
     },
   },
@@ -102,6 +93,6 @@ export default defineConfig({
     global: 'globalThis',
   },
   
-  // Base URL configuration for Vercel
-  base: '/',
+  // Base URL configuration for Vercel - use relative paths
+  base: '',
 });
