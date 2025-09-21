@@ -8,15 +8,17 @@ WORKDIR /app/frontend
 # Copy package files first for better caching
 COPY frontend/package*.json ./
 
-# Install dependencies
-RUN npm install --legacy-peer-deps
-
 # Copy the rest of the frontend files
 COPY frontend/ .
 
+# Create a minimal .env file if it doesn't exist
+RUN echo "VITE_API_BASE_URL=https://business-accounting-app.onrender.com" > .env
+
+# Install dependencies
+RUN npm install --legacy-peer-deps
+
 # Set environment for production build
-ENV NODE_ENV=production \
-    VITE_API_BASE_URL=https://business-accounting-app.onrender.com
+ENV NODE_ENV=production
 
 # Build the frontend
 RUN npm run build
@@ -40,18 +42,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set work directory
 WORKDIR /app
 
-# Copy frontend build from builder stage
-COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
-
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
-COPY . .
-
-# Copy built frontend files
+# Copy application code (excluding node_modules and other unnecessary files)
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY . .
 
 # Expose the port the app runs on
 EXPOSE $PORT
