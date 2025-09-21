@@ -47,9 +47,18 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    emptyOutDir: true,
     commonjsOptions: {
       include: [/node_modules/],
       transformMixedEsModules: true,
+    },
+    rollupOptions: {
+      output: {
+        // Ensure consistent hashing for better caching
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+      },
     },
   },
   
@@ -58,4 +67,7 @@ export default defineConfig({
     'process.browser': true,
     global: 'globalThis',
   },
+  
+  // Ensure base is set correctly for production
+  base: process.env.NODE_ENV === 'production' ? '/' : '/',
 });

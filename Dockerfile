@@ -8,21 +8,23 @@ WORKDIR /app/frontend
 # Copy package files first for better caching
 COPY frontend/package*.json ./
 
-# Copy .env.example and create .env if it doesn't exist
-COPY frontend/.env.example ./
-RUN if [ ! -f .env ]; then cp .env.example .env; fi
+# Install dependencies
+RUN npm install --legacy-peer-deps
 
-# Install dependencies without running postinstall script
-RUN npm install --legacy-peer-deps --ignore-scripts
-
-# Now copy the rest of the frontend files
+# Copy the rest of the frontend files
 COPY frontend/ .
 
 # Set environment for production build
 ENV NODE_ENV=production
 
+# Set the API base URL for production
+ENV VITE_API_BASE_URL=https://business-accounting-app.onrender.com
+
 # Build the frontend
 RUN npm run build
+
+# Verify the build output
+RUN ls -la /app/frontend/dist
 
 # ===========================================
 # Production stage - Backend + Frontend

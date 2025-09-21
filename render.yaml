@@ -13,6 +13,8 @@ services:
         value: "10000"
       - key: NODE_ENV
         value: "production"
+      - key: VITE_API_BASE_URL
+        value: "https://business-accounting-app.onrender.com"
     # Health check configuration
     healthCheckPath: /api/health
     # Auto-deploy from GitHub

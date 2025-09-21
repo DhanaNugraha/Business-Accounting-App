@@ -56,8 +56,8 @@ async def options_save(request: Request):
 # Serve static files for frontend
 frontend_path = Path("frontend/dist")
 if frontend_path.exists():
-    # Serve the frontend files
-    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+    # Mount the static files at the root
+    app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="static")
     
     # Serve the index.html for all other routes (client-side routing)
     @app.get("/{full_path:path}")
