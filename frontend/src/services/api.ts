@@ -160,12 +160,6 @@ export const startHealthChecks = (onStatusChange?: (status: string) => void) => 
 };
 
 // API functions
-// Types for API responses
-interface UploadResponse {
-  message: string;
-  data: any;
-}
-
 /**
  * Download the Excel template file
  */
@@ -210,46 +204,6 @@ export const downloadTemplate = async (): Promise<void> => {
     console.error('Error downloading template:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     throw new Error(`Failed to download template: ${errorMessage}`);
-  }
-};
-
-/**
- * Upload a file to the server
- * @returns Processed data from the server
- */
-export const uploadFile = async (file: File): Promise<UploadResponse> => {
-  try {
-    if (!file) {
-      throw new Error('No file provided');
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    console.log('Uploading file:', file.name);
-    
-    const response = await apiClient.post<UploadResponse>('/api/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    
-    console.log('File upload successful:', response.status);
-    return response.data;
-    
-  } catch (error: unknown) {
-    console.error('Error uploading file:', error);
-    let errorMessage = 'Unknown error occurred';
-    
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      if ('response' in error && error.response) {
-        const response = error.response as any;
-        errorMessage = response.data?.detail || response.data?.message || errorMessage;
-      }
-    }
-    
-    throw new Error(`Failed to upload file: ${errorMessage}`);
   }
 };
 

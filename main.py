@@ -1,12 +1,9 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Response, Request
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi import FastAPI, HTTPException, Response, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import pandas as pd
-import io
-from pathlib import Path
 from datetime import datetime
 import tempfile
 import os
@@ -19,11 +16,9 @@ app = FastAPI(title="Accounting Helper API")
 
 # Allowed origins for CORS
 origins = [
+    "https://business-accounting-app.onrender.com",
     "http://localhost:3000",
-    "http://localhost:5173",
-    "http://localhost:10000",
-    "https://*.onrender.com",
-    "https://*.vercel.app"
+    "http://127.0.0.1:3000"
 ]
 
 # Enable CORS with dynamic origin handling
@@ -31,20 +26,24 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
-    expose_headers=["*"],
+    expose_headers=["Content-Disposition"],  # Important for file downloads
     max_age=86400,  # 24 hours
 )
 
 
-# Add OPTIONS route for CORS preflight
+# Add OPTIONS routes for CORS preflight
 @app.options("/api/save")
 async def options_save(request: Request):
+    origin = request.headers.get("origin")
+    if origin not in origins and origin is not None:
+        origin = "https://business-accounting-app.onrender.com"
+    
     return JSONResponse(
         content={"message": "OK"},
         headers={
-            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+            "Access-Control-Allow-Origin": origin or "https://business-accounting-app.onrender.com",
             "Access-Control-Allow-Methods": "POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Allow-Credentials": "true",
@@ -52,35 +51,23 @@ async def options_save(request: Request):
         },
     )
 
-
-# Serve static files for frontend
-frontend_path = Path("frontend/dist")
-if frontend_path.exists():
-    # Mount static files under /static
-    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+@app.options("/api/template")
+async def options_template(request: Request):
+    origin = request.headers.get("origin")
+    if origin not in origins and origin is not None:
+        origin = "https://business-accounting-app.onrender.com"
     
-    # Serve the index.html for all non-API routes (client-side routing)
-    @app.get("/{full_path:path}")
-    async def serve_frontend(full_path: str):
-        # Don't handle API routes here
-        if full_path.startswith("api/"):
-            raise HTTPException(status_code=404, detail="API route not found")
-        
-        # Check if the requested file exists
-        file_path = frontend_path / full_path
-        if file_path.exists() and file_path.is_file():
-            return FileResponse(file_path)
-            
-        # Default to index.html for SPA routing
-        index_path = frontend_path / "index.html"
-        if not index_path.exists():
-            raise HTTPException(status_code=404, detail="Frontend not found")
-            
-        return FileResponse(index_path)
-    
-    print("Serving static files from 'dist' directory")
-else:
-    print("Note: 'dist' directory not found. Running in API-only mode.")
+    return JSONResponse(
+        content={"message": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": origin or "https://business-accounting-app.onrender.com",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Expose-Headers": "Content-Disposition",
+            "Access-Control-Max-Age": "86400"
+        }
+    )
 
 
 # Utility functions
@@ -124,7 +111,7 @@ class TemplateData(BaseModel):
 
 
 # API Endpoints
-@app.get("/")
+@app.get("/api")
 async def root():
     """Root endpoint to check if the API is running."""
     return {"message": "Accounting Helper API is running", "status": "ok"}
@@ -152,11 +139,12 @@ async def health_check(delay: int = 0):
 
 
 @app.get("/api/template")
-async def download_template() -> Response:
+async def download_template(request: Request) -> Response:
     """Download the Excel template file with the new format."""
     temp_path = None
     try:
         print("\n=== Template Download Request ===")
+        print(f"Origin header: {request.headers.get('origin')}")
         print("Generating template file...")
 
         # Create a temporary file with delete=False to manage it ourselves
@@ -175,13 +163,19 @@ async def download_template() -> Response:
 
         # Create the response with the file content
         filename = f"accounting_template_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        
+        # Add CORS headers
+        headers = {
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Access-Control-Expose-Headers": "Content-Disposition",
+            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+            "Access-Control-Allow-Credentials": "true",
+        }
+        
         response = Response(
             content=file_content,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}",
-                "Access-Control-Expose-Headers": "Content-Disposition",
-            },
+            headers=headers,
         )
 
         return response
@@ -199,29 +193,6 @@ async def download_template() -> Response:
                 os.unlink(temp_path)
             except Exception as e:
                 print(f"Error cleaning up temp file: {e}")
-
-@app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)) -> JSONResponse:
-    """Process uploaded Excel file and return structured data."""
-    if not file.filename.endswith((".xlsx", ".xls")):
-        raise HTTPException(
-            status_code=400, detail="Only Excel files (.xlsx, .xls) are supported"
-        )
-
-    try:
-        contents = await file.read()
-        xls = pd.ExcelFile(io.BytesIO(contents))
-        accounts = _process_excel_sheets(xls)
-
-        if not accounts:
-            raise HTTPException(status_code=400, detail="No valid account sheets found")
-
-        return JSONResponse(content={"accounts": accounts})
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
-
 
 @app.post("/api/save")
 async def save_file(data: TemplateData, request: Request):
