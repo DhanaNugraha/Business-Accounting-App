@@ -160,11 +160,20 @@ export const startHealthChecks = (onStatusChange?: (status: string) => void) => 
 };
 
 // API functions
+// Types for API responses
+interface UploadResponse {
+  message: string;
+  data: any;
+}
+
+/**
+ * Download the Excel template file
+ */
 export const downloadTemplate = async (): Promise<void> => {
   try {
-    // Create a new axios instance without the baseURL to handle absolute URLs
-    const downloadClient = axios.create({
-      withCredentials: true,
+    console.log('Downloading template from:', `${API_BASE_URL}/api/template`);
+    
+    const response = await apiClient.get<Blob>('/api/template', {
       responseType: 'blob',
       headers: {
         'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -172,93 +181,19 @@ export const downloadTemplate = async (): Promise<void> => {
         'Pragma': 'no-cache',
       },
     });
-
-    const response = await downloadClient.get(
-      `${API_BASE_URL}/api/template`,
-      {
-        responseType: 'blob',
-        headers: {
-          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-        },
-      }
-    );
-
-    // Create a URL for the blob
-    const url = window.URL.createObjectURL(new Blob([response.data]));
     
-    // Create a temporary link element
-    const link = document.createElement('a');
-    link.href = url;
-    
-    // Get the filename from the content disposition header or use a default
-    const contentDisposition = response.headers['content-disposition'];
-    let filename = `accounting_template_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      if (filenameMatch && filenameMatch[1]) {
-        filename = filenameMatch[1].replace(/['"]/g, '');
-      }
+    if (!response.data) {
+      throw new Error('No data received from server');
     }
-    
-    // Set the download attribute and filename
-    link.setAttribute('download', filename);
-    
-    // Append to body, trigger download, and clean up
-    document.body.appendChild(link);
-    link.click();
-    
-    // Clean up
-    setTimeout(() => {
-      if (link.parentNode) {
-        link.parentNode.removeChild(link);
-      }
-      window.URL.revokeObjectURL(url);
-    }, 100);
-    
-  } catch (error) {
-    console.error('Error downloading template:', error);
-    throw error;
-  }
-};
 
-export const uploadFile = async (file: File): Promise<any> => {
-  const formData = new FormData();
-  formData.append('file', file);
-  
-  try {
-    const response = await apiClient.post('/api/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    throw error;
-  }
-};
+    const contentDisposition = response.headers['content-disposition'] || '';
+    const filenameMatch = contentDisposition.match(/filename[^;=]*=([^;\n]*)/);
+    const filename = filenameMatch ? 
+      filenameMatch[1].replace(/['"]/g, '') : 
+      `accounting_template_${new Date().toISOString().slice(0, 10)}.xlsx`;
 
-export const saveTransactions = async (data: any): Promise<void> => {
-  try {
-    console.log('Saving transactions:', JSON.stringify(data, null, 2));
-    
-    const response = await apiClient.post('/api/save', data, {
-      responseType: 'blob', // Important for file download
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    // Create a download link and trigger download
+    // Create and trigger download
     const url = window.URL.createObjectURL(new Blob([response.data]));
-    const contentDisposition = response.headers['content-disposition'];
-    const filename = contentDisposition
-      ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-      : 'transactions.xlsx';
-    
     const link = document.createElement('a');
     link.href = url;
     link.setAttribute('download', filename);
@@ -272,7 +207,108 @@ export const saveTransactions = async (data: any): Promise<void> => {
     window.URL.revokeObjectURL(url);
     
   } catch (error) {
+    console.error('Error downloading template:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new Error(`Failed to download template: ${errorMessage}`);
+  }
+};
+
+/**
+ * Upload a file to the server
+ * @returns Processed data from the server
+ */
+export const uploadFile = async (file: File): Promise<UploadResponse> => {
+  try {
+    if (!file) {
+      throw new Error('No file provided');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    console.log('Uploading file:', file.name);
+    
+    const response = await apiClient.post<UploadResponse>('/api/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    
+    console.log('File upload successful:', response.status);
+    return response.data;
+    
+  } catch (error: unknown) {
+    console.error('Error uploading file:', error);
+    let errorMessage = 'Unknown error occurred';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      if ('response' in error && error.response) {
+        const response = error.response as any;
+        errorMessage = response.data?.detail || response.data?.message || errorMessage;
+      }
+    }
+    
+    throw new Error(`Failed to upload file: ${errorMessage}`);
+  }
+};
+
+/**
+ * Save transactions and download the updated file
+ * @param data Transaction data to save
+ */
+export const saveTransactions = async (data: any): Promise<void> => {
+  try {
+    if (!data) {
+      throw new Error('No data provided');
+    }
+    
+    console.log('Saving transactions:', data);
+    
+    const response = await apiClient.post<Blob>('/api/save', data, {
+      responseType: 'blob',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      },
+    });
+
+    if (!response.data) {
+      throw new Error('No data received from server');
+    }
+
+    const contentDisposition = response.headers['content-disposition'] || '';
+    const filenameMatch = contentDisposition.match(/filename[^=]*=([^;\n]*)/);
+    const filename = filenameMatch ? 
+      filenameMatch[1].replace(/['"]/g, '') : 
+      `transactions_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    
+    // Create and trigger download
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    if (link.parentNode) {
+      link.parentNode.removeChild(link);
+    }
+    window.URL.revokeObjectURL(url);
+    
+  } catch (error: unknown) {
     console.error('Error saving transactions:', error);
-    throw error;
+    let errorMessage = 'Unknown error occurred';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      if ('response' in error && error.response) {
+        const response = error.response as any;
+        errorMessage = response.data?.detail || response.data?.message || errorMessage;
+      }
+    }
+    
+    throw new Error(`Failed to save transactions: ${errorMessage}`);
   }
 };
