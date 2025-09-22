@@ -49,21 +49,30 @@ interface ChartDataPoint {
 }
 
 const formatCurrency = (amount: number, shortFormat: boolean = false): string => {
+  const isNegative = amount < 0;
+  const absAmount = Math.abs(amount);
+  
   if (shortFormat) {
-    if (amount >= 1000000000) {
-      return `Rp${(amount / 1000000000).toFixed(1)} M`;
-    } else if (amount >= 1000000) {
-      return `Rp${(amount / 1000000).toFixed(1)} jt`;
-    } else if (amount >= 1000) {
-      return `Rp${(amount / 1000).toFixed(0)} rb`;
+    let formattedAmount: string;
+    if (absAmount >= 1000000000) {
+      formattedAmount = `Rp${(absAmount / 1000000000).toFixed(1)} M`;
+    } else if (absAmount >= 1000000) {
+      formattedAmount = `Rp${(absAmount / 1000000).toFixed(1)} jt`;
+    } else if (absAmount >= 1000) {
+      formattedAmount = `Rp${(absAmount / 1000).toFixed(0)} rb`;
+    } else {
+      formattedAmount = `Rp${absAmount}`;
     }
-    return `Rp${amount}`;
+    return isNegative ? `-${formattedAmount}` : formattedAmount;
   }
-  return new Intl.NumberFormat('id-ID', {
+  
+  const formatter = new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
     maximumFractionDigits: 0,
-  }).format(amount);
+  });
+  
+  return isNegative ? `-${formatter.format(absAmount)}` : formatter.format(absAmount);
 };
 
 const ReportsPage: React.FC = () => {
@@ -141,12 +150,20 @@ const ReportsPage: React.FC = () => {
       // Convert to arrays with proper formatting
       const monthlyReports: BalanceByPeriod[] = Object.entries(monthlyData)
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([period, { income, expense }]) => ({
-          period,
-          income,
-          expense,
-          balance: income - expense
-        }));
+        .map(([period, { income, expense }]) => {
+          // Format period as 'MMM YYYY' (e.g., 'Jan 2023')
+          const [year, month] = period.split('-');
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+          const formattedPeriod = `${monthNames[parseInt(month) - 1]} ${year}`;
+          
+          return {
+            period: formattedPeriod,
+            originalPeriod: period, // Keep original for sorting
+            income,
+            expense,
+            balance: income - expense
+          };
+        });
 
       const yearlyReports: BalanceByPeriod[] = Object.entries(yearlyData)
         .sort(([a], [b]) => a.localeCompare(b))
@@ -289,9 +306,17 @@ const ReportsPage: React.FC = () => {
   const renderReports = () => {
     if (!reports) return null;
 
-    const data = activeTab === 'monthly' ? reports.monthly : 
-                activeTab === 'yearly' ? reports.yearly : 
-                reports.running;
+    // For monthly data, we need to sort by original period to maintain correct order
+    let data;
+    if (activeTab === 'monthly') {
+      data = [...reports.monthly].sort((a: any, b: any) => 
+        a.originalPeriod.localeCompare(b.originalPeriod)
+      );
+    } else if (activeTab === 'yearly') {
+      data = reports.yearly;
+    } else {
+      data = reports.running;
+    }
 
     return (
       <div className="space-y-6">
@@ -312,7 +337,7 @@ const ReportsPage: React.FC = () => {
                       top: 20,
                       right: 30,
                       left: 20,
-                      bottom: 5,
+                      bottom: 30,
                     }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
@@ -337,7 +362,12 @@ const ReportsPage: React.FC = () => {
                         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
                       }}
                     />
-                    <Legend />
+                    <Legend 
+                      wrapperStyle={{
+                        paddingTop: '20px',
+                        paddingBottom: '10px'
+                      }}
+                    />
                     <Line 
                       type="linear"
                       dataKey="runningBalance" 
@@ -356,7 +386,7 @@ const ReportsPage: React.FC = () => {
                       top: 20,
                       right: 30,
                       left: 20,
-                      bottom: 5,
+                      bottom: 30,
                     }}
                     barGap={0}
                     barCategoryGap="20%"
@@ -366,6 +396,12 @@ const ReportsPage: React.FC = () => {
                       dataKey="period" 
                       tick={{ fontSize: 12 }}
                       tickMargin={10}
+                      interval={0}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      axisLine={{ stroke: '#e5e7eb' }}
+                      tickLine={false}
                     />
                     <YAxis 
                       tickFormatter={(value) => formatCurrency(value, true)}
@@ -383,7 +419,12 @@ const ReportsPage: React.FC = () => {
                         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)'
                       }}
                     />
-                    <Legend />
+                    <Legend 
+                      wrapperStyle={{
+                        paddingTop: '20px',
+                        paddingBottom: '10px'
+                      }}
+                    />
                     <Bar 
                       dataKey="income" 
                       name="Pendapatan" 
@@ -400,6 +441,71 @@ const ReportsPage: React.FC = () => {
                 )}
               </ResponsiveContainer>
             </div>
+            
+            {/* Numeric Breakdown - Only show for monthly/yearly tabs */}
+            {activeTab !== 'running' && (
+            <div className="mt-6 overflow-x-auto">
+              <h4 className="text-md font-medium text-gray-700 mb-3">Detail {activeTab === 'monthly' ? 'Bulanan' : 'Tahunan'}</h4>
+              <div className="inline-block min-w-full align-middle rounded-lg overflow-hidden border border-gray-300">
+                <table className="min-w-full divide-y divide-gray-200 border-collapse">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        {activeTab === 'monthly' ? 'Bulan' : 'Tahun'}
+                      </th>
+                      <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Pendapatan
+                      </th>
+                      <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Pengeluaran
+                      </th>
+                      <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        NET Perubahan
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {data.map((item: any) => (
+                      <tr key={item.period} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {item.period}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-sm text-right text-green-600">
+                          {formatCurrency(item.income, true)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-sm text-right text-red-600">
+                          {formatCurrency(item.expense, true)}
+                        </td>
+                        <td className={`px-3 py-2 whitespace-nowrap text-sm text-right font-medium ${
+                          item.balance >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {item.balance >= 0 ? '' : '-'}{formatCurrency(Math.abs(item.balance), true)}
+                        </td>
+                      </tr>
+                    ))}
+                    {/* Total Row */}
+                    <tr className="bg-gray-50">
+                      <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                        Total
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm text-right font-medium text-green-600">
+                        {formatCurrency(data.reduce((sum: number, item: any) => sum + item.income, 0), true)}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap text-sm text-right font-medium text-red-600">
+                        {formatCurrency(data.reduce((sum: number, item: any) => sum + item.expense, 0), true)}
+                      </td>
+                      <td className={`px-3 py-2 whitespace-nowrap text-sm text-right font-medium ${
+                        data.reduce((sum: number, item: any) => sum + item.balance, 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {data.reduce((sum: number, item: any) => sum + item.balance, 0) >= 0 ? '' : '-'}
+                        {formatCurrency(Math.abs(data.reduce((sum: number, item: any) => sum + item.balance, 0)), true)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            )}
           </div>
         </div>
       </div>
