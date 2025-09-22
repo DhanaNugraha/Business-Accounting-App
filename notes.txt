@@ -46,6 +46,8 @@ flag double counting
 
 report laba/rugi bersih per bulan (next month should start with previous month's balance) done (changed per month to bar charts) (should also put this in writing)
 
+remove account name from local storage
+
 download report
 
 

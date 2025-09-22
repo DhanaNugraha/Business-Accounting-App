@@ -70,6 +70,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
   }, [transactions]);
   
   // Filter and sort state
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [filters, setFilters] = useState<FilterState>({
     searchQuery: '',
     transactionType: 'all',
@@ -78,6 +79,18 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     sortField: 'tanggal',
     sortDirection: 'desc'
   });
+
+  const handleSearch = useCallback(() => {
+    const searchValue = searchInputRef.current?.value || '';
+    setFilters(prev => ({ ...prev, searchQuery: searchValue }));
+  }, []);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const searchValue = (e.target as HTMLInputElement).value;
+      setFilters(prev => ({ ...prev, searchQuery: searchValue }));
+    }
+  }, []);
 
   // Toggle sort direction
   const toggleSort = useCallback((field: SortField) => {
@@ -483,30 +496,73 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
           </h3>
         </div>
         
-        <div className="p-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end">
+        <div className="p-5 space-y-4">
+          {/* Top Row: Search and Reset */}
+          <div className="flex flex-col md:flex-row gap-4 w-full">
             {/* Search Input */}
-            <div className="relative">
+            <div className="relative flex-grow md:w-2/3">
               <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Cari Transaksi
               </label>
-              <div className="relative rounded-lg shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
+              <div className="flex space-x-2">
+                <div className="relative flex-grow rounded-lg shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    id="search"
+                    className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    placeholder="Cari uraian/kategori..."
+                    defaultValue={filters.searchQuery}
+                    ref={searchInputRef}
+                    onKeyDown={handleKeyDown}
+                  />
                 </div>
-                <input
-                  type="text"
-                  id="search"
-                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                  placeholder="Cari uraian/kategori..."
-                  value={filters.searchQuery}
-                  onChange={(e) => setFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
-                />
+                <button
+                  type="button"
+                  onClick={handleSearch}
+                  className="inline-flex items-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                >
+                  Cari
+                </button>
               </div>
             </div>
 
+            {/* Reset Filters Button */}
+            <div className="flex items-end justify-end md:justify-end w-full md:w-1/3">
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters({
+                    searchQuery: '',
+                    transactionType: 'all',
+                    startDate: '',
+                    endDate: '',
+                    sortField: 'tanggal',
+                    sortDirection: 'desc'
+                  });
+                  if (searchInputRef.current) {
+                    searchInputRef.current.value = '';
+                  }
+                }}
+                disabled={!hasActiveFilters}
+                className={`w-full md:w-auto inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  hasActiveFilters 
+                    ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm' 
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-transparent'
+                }`}
+              >
+                <ArrowPathIcon className="h-4 w-4 mr-2" />
+                Reset Filter
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom Row: Other Filters */}
+          <div className="flex flex-col md:flex-row gap-4 w-full">
             {/* Transaction Type Filter */}
-            <div>
+            <div className="w-full md:w-1/3">
               <label htmlFor="transactionType" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Jenis Transaksi
               </label>
@@ -527,8 +583,8 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
               </div>
             </div>
 
-            {/* Date Range */}
-            <div className="relative">
+            {/* Start Date */}
+            <div className="relative w-full md:w-1/3">
               <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Dari Tanggal
               </label>
@@ -543,7 +599,8 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
               </div>
             </div>
 
-            <div className="relative">
+            {/* End Date */}
+            <div className="relative w-full md:w-1/3">
               <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Sampai Tanggal
               </label>
@@ -557,30 +614,6 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                   min={filters.startDate}
                 />
               </div>
-            </div>
-
-            {/* Reset Filters Button */}
-            <div className="flex items-end">
-              <button
-                type="button"
-                onClick={() => setFilters({
-                  searchQuery: '',
-                  transactionType: 'all',
-                  startDate: '',
-                  endDate: '',
-                  sortField: 'tanggal',
-                  sortDirection: 'desc'
-                })}
-                disabled={!hasActiveFilters}
-                className={`w-full inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  hasActiveFilters 
-                    ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm' 
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-transparent'
-                }`}
-              >
-                <ArrowPathIcon className="-ml-1 mr-2 h-4 w-4" />
-                Reset Filter
-              </button>
             </div>
           </div>
           
@@ -1098,7 +1131,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
       )}
       
 
-      <div className="bg-white/80 backdrop-blur-sm rounded-lg mb-6 transition-all duration-200 ease-in-out hover:shadow-sm">
+      <div className="bg-white/80 backdrop-blur-sm rounded-lg mb-6 transition-all duration-200 ease-in-out">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="w-full sm:w-auto">
             <button
