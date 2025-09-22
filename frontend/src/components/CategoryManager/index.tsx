@@ -83,6 +83,16 @@ export const CategoryManager = () => {
     
     // For transaction categories, we need to update all transactions that use this category
     if (isTransactionCategory && oldName) {
+      // Check if the name is actually being changed
+      if (oldName === nameToUse) {
+        // If the name hasn't changed, just cancel editing
+        setEditingId(null);
+        setFormData({ name: '', type: 'pengeluaran' });
+        setFormErrors({ name: '' });
+        setIsLoading(false);
+        return;
+      }
+      
       // Check if the new name already exists in context categories
       const nameExistsInContext = state.categories.some(
         cat => cat.name.toLowerCase() === nameToUse.toLowerCase()
@@ -90,6 +100,23 @@ export const CategoryManager = () => {
       
       if (nameExistsInContext) {
         toast.error('Kategori dengan nama yang sama sudah ada di daftar kategori');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check if there are any transactions using this category
+      const hasTransactions = state.accounts.some(account => 
+        account.transactions.some(tx => 
+          (tx.penerimaan && oldName in tx.penerimaan) || 
+          (tx.pengeluaran && oldName in tx.pengeluaran)
+        )
+      );
+      
+      if (!hasTransactions) {
+        // If no transactions are using this category, just cancel editing
+        setEditingId(null);
+        setFormData({ name: '', type: 'pengeluaran' });
+        setFormErrors({ name: '' });
         setIsLoading(false);
         return;
       }
@@ -546,7 +573,6 @@ export const CategoryManager = () => {
           <li>Klik ikon pensil untuk mengedit nama kategori</li>
           <li>Klik ikon tong sampah untuk menghapus kategori</li>
           <li>Kategori yang digunakan dalam transaksi tidak dapat dihapus</li>
-          <li>Urutkan kategori dengan drag and drop (fitur akan datang)</li>
         </ul>
       </div>
     </div>
