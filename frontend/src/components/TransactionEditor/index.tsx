@@ -844,12 +844,6 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                         year: 'numeric',
                       })}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {new Date(transaction.tanggal).toLocaleTimeString('id-ID', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900 font-medium">
