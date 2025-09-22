@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect } from 'react';
+import { createContext, useContext, useReducer} from 'react';
 import type { TransactionItem } from '../types';
 
 interface AccountBase {
