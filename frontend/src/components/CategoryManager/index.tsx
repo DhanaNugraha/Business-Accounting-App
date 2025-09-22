@@ -60,8 +60,53 @@ export const CategoryManager = () => {
     setFormData({ name: '', type: 'pengeluaran' });
   };
 
-  const filteredCategories = (type: 'penerimaan' | 'pengeluaran') => 
-    state.categories.filter(cat => cat.type === type);
+  // Get categories from both context and current account's transactions
+  const getCategories = (type: 'penerimaan' | 'pengeluaran') => {
+    // Get categories from context
+    const contextCategories = state.categories
+      .filter(cat => cat.type === type)
+      .map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        type: cat.type,
+        fromContext: true
+      }));
+
+    // Get current account's transactions
+    const currentAccount = state.accounts.find(acc => acc.name === state.currentAccount);
+    const transactionCategories = new Set<string>();
+    
+    // Only process transactions if we have a current account
+    if (currentAccount) {
+      currentAccount.transactions.forEach(tx => {
+        const categories = type === 'penerimaan' ? tx.penerimaan : tx.pengeluaran;
+        Object.keys(categories || {}).forEach(catName => {
+          transactionCategories.add(catName);
+        });
+      });
+    }
+
+    // Convert transaction categories to the same format
+    const transactionCategoriesArray = Array.from(transactionCategories).map(name => ({
+      id: `tx-${name}`, // Prefix to avoid conflicts with context categories
+      name,
+      type,
+      fromContext: false
+    }));
+
+    // Combine and remove duplicates (prioritize context categories)
+    const allCategories = [...contextCategories];
+    const existingNames = new Set(contextCategories.map(c => c.name));
+    
+    transactionCategoriesArray.forEach(cat => {
+      if (!existingNames.has(cat.name)) {
+        allCategories.push(cat);
+        existingNames.add(cat.name);
+      }
+    });
+
+    return allCategories;
+  };
 
   return (
     <div className="space-y-6">
@@ -128,7 +173,7 @@ export const CategoryManager = () => {
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="font-medium text-green-600 mb-3">Kategori Penerimaan</h3>
           <ul className="space-y-2">
-            {filteredCategories('penerimaan').map((category) => (
+            {getCategories('penerimaan').map((category) => (
               <li key={category.id} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
                 {editingId === category.id ? (
                   <div className="flex-1 space-y-2">
@@ -182,7 +227,7 @@ export const CategoryManager = () => {
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="font-medium text-red-600 mb-3">Kategori Pengeluaran</h3>
           <ul className="space-y-2">
-            {filteredCategories('pengeluaran').map((category) => (
+            {getCategories('pengeluaran').map((category) => (
               <li key={category.id} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
                 {editingId === category.id ? (
                   <div className="flex-1 space-y-2">
