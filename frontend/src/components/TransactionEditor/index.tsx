@@ -53,6 +53,17 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
   const [isAdding, setIsAdding] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
   
+  // State for duplicate transaction warning
+  const [duplicateWarning, setDuplicateWarning] = useState<{
+    isOpen: boolean;
+    transaction: TransactionItem | null;
+    onConfirm: (() => void) | null;
+  }>({
+    isOpen: false,
+    transaction: null,
+    onConfirm: null,
+  });
+  
   // Calculate running balance for transactions
   const transactionsWithRunningBalance = useMemo(() => {
     let runningBalance = 0;
@@ -177,6 +188,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     isOpen: false, 
     id: null 
   });
+  
 
   // Extract unique categories from context and transactions
   const availableCategories = useMemo(() => {
@@ -360,14 +372,89 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     }
   }, [errors.tanggal]);
 
-  // Format currency for display
-  const formatCurrency = useCallback((value: string) => {
+  // Format amount for display (handles both string and number inputs)
+  const formatCurrency = (amount: string | number): string => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) || 0 : amount;
     return new Intl.NumberFormat('id-ID', {
-      style: 'decimal',
+      style: 'currency',
+      currency: 'IDR',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(Number(value) || 0);
-  }, []);
+      maximumFractionDigits: 0
+    }).format(numAmount);
+  };
+  
+  // Helper to safely convert values to numbers
+  const toNumber = (value: unknown): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') return parseFloat(value) || 0;
+    return 0;
+  };
+
+  // Check for potential duplicate transactions
+  const checkForDuplicates = useCallback((txData: TransactionItem, currentId?: string): boolean => {
+    return transactions.some(tx => {
+      // Skip the current transaction when editing
+      if (currentId && tx.id === currentId) return false;
+      
+      // Check for same date, similar amount (±1%), and similar description
+      const isSameDate = tx.tanggal === txData.tanggal;
+      const txAmount = Math.abs(toNumber(tx.jumlah));
+      const newAmount = Math.abs(toNumber(txData.jumlah));
+      const amountDiff = Math.abs(txAmount - newAmount);
+      const isSimilarAmount = amountDiff / Math.max(txAmount, 1) < 0.01; // Within 1%
+      
+      // Check if descriptions are similar (case insensitive, ignoring whitespace)
+      const normalizeStr = (str: string) => str.toLowerCase().replace(/\s+/g, '');
+      const txDesc = normalizeStr(tx.uraian || '');
+      const newDesc = normalizeStr(txData.uraian || '');
+      const isSimilarDescription = 
+        txDesc.includes(newDesc) || 
+        newDesc.includes(txDesc) ||
+        txDesc.length > 0 && newDesc.length > 0 && (
+          txDesc.length > newDesc.length 
+            ? (txDesc.includes(newDesc) || newDesc.length / txDesc.length > 0.7)
+            : (newDesc.includes(txDesc) || txDesc.length / newDesc.length > 0.7)
+        );
+      
+      // If same date, similar amount, and similar descriptions, it's likely a duplicate
+      return isSameDate && isSimilarAmount && isSimilarDescription;
+    });
+  }, [transactions]);
+
+  // Save transaction after duplicate check
+  const saveTransaction = useCallback((txData: Omit<TransactionItem, 'id' | 'saldo_berjalan'>, currentId?: string) => {
+    const newTransaction: TransactionItem = {
+      ...txData,
+      id: currentId || `tx-${Date.now()}`,
+      saldo_berjalan: 0 // This will be recalculated
+    };
+
+    let updated: TransactionItem[];
+    if (currentId) {
+      // Update existing transaction
+      updated = editedTransactions.map(tx => 
+        tx.id === currentId ? { ...newTransaction } : tx
+      );
+    } else {
+      // Add new transaction
+      updated = [...editedTransactions, newTransaction];
+    }
+
+    setEditedTransactions(updated);
+    onSave(updated);
+    
+    // Reset the form
+    setSimpleForm({
+      tanggal: new Date().toISOString().split('T')[0],
+      tipe: 'penerimaan',
+      kategori: '',
+      uraian: '',
+      jumlah: '0'
+    });
+    
+    setIsAdding(false);
+    setEditingId(null);
+  }, [editedTransactions, onSave]);
 
   const handleSaveTransaction = useCallback((e: React.FormEvent): void => {
     e.preventDefault();
@@ -376,6 +463,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     setErrors({});
     
     const newErrors: Record<string, string> = {};
+    const amount = toNumber(simpleForm.jumlah);
     
     if (!simpleForm.tanggal) {
       newErrors.tanggal = 'Tanggal harus diisi';
@@ -389,7 +477,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
       newErrors.uraian = 'Uraian harus diisi';
     }
     
-    if (isNaN(Number(simpleForm.jumlah)) || Number(simpleForm.jumlah) <= 0) {
+    if (isNaN(amount) || amount <= 0) {
       newErrors.jumlah = 'Jumlah harus lebih dari 0';
     }
     
@@ -399,70 +487,41 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
       return;
     }
 
-    const txData: Omit<TransactionItem, 'id'> = {
+    // Prepare the transaction data
+    const txData: Omit<TransactionItem, 'id' | 'saldo_berjalan'> = {
       tanggal: simpleForm.tanggal,
-      uraian: simpleForm.uraian,
+      uraian: simpleForm.uraian.trim(),
       penerimaan: {},
       pengeluaran: {},
-      jumlah: 0,
-      saldo_berjalan: 0
+      jumlah: 0
     };
 
+    // Set the appropriate transaction type and amount
     if (simpleForm.tipe === 'penerimaan') {
       txData.penerimaan = { [simpleForm.kategori]: Number(simpleForm.jumlah) };
     } else {
       txData.pengeluaran = { [simpleForm.kategori]: Number(simpleForm.jumlah) };
     }
 
+    // Calculate total amount
     const penerimaanTotal = Object.values(txData.penerimaan).reduce((sum, val) => sum + (Number(val) || 0), 0);
     const pengeluaranTotal = Object.values(txData.pengeluaran).reduce((sum, val) => sum + (Number(val) || 0), 0);
     txData.jumlah = penerimaanTotal - pengeluaranTotal;
 
-    let updated: TransactionItem[];
-    if (editingId) {
-      // Update existing transaction
-      const updatedTransaction = editedTransactions.find(tx => tx.id === editingId);
-      if (updatedTransaction) {
-        // Calculate jumlah for the new transaction
-        const penerimaanTotal = Object.values(updatedTransaction.penerimaan).reduce(
-          (sum, val) => sum + (Number(val) || 0),
-          0
-        );
-        const pengeluaranTotal = Object.values(updatedTransaction.pengeluaran).reduce(
-          (sum, val) => sum + (Number(val) || 0),
-          0
-        );
-        updatedTransaction.jumlah = penerimaanTotal - pengeluaranTotal;
-
-        updated = editedTransactions.map(tx => 
-          tx.id === editingId ? { ...updatedTransaction, ...txData } : tx
-        );
-      } else {
-        updated = editedTransactions;
-      }
-    } else {
-      // Add new transaction
-      const newTx: TransactionItem = {
-        ...txData,
-        id: `tx-${Date.now()}`
-      };
-      updated = [...editedTransactions, newTx];
+    // Check for duplicates for both new and updated transactions
+    const isDuplicate = checkForDuplicates(txData as TransactionItem, editingId || undefined);
+    if (isDuplicate) {
+      // Show duplicate warning
+      setDuplicateWarning({
+        isOpen: true,
+        transaction: { ...txData, id: editingId || 'temp', saldo_berjalan: 0 } as TransactionItem,
+        onConfirm: () => saveTransaction(txData, editingId || undefined)
+      });
+      return; // Wait for user confirmation
     }
 
-    setEditedTransactions(updated);
-    onSave(updated);
-    
-    // Reset the form
-    setSimpleForm({
-      tanggal: new Date().toISOString().split('T')[0],
-      uraian: '',
-      jumlah: '',
-      tipe: 'penerimaan',
-      kategori: ''
-    });
-    
-    setIsAdding(false);
-    setEditingId(null);
+    // If no duplicates found, save the transaction
+    saveTransaction(txData, editingId || undefined);
   }, [simpleForm, editingId, editedTransactions, onSave]);
 
   // Add scroll to form with smooth behavior
@@ -810,7 +869,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                     <div className={`text-sm font-medium ${
                       isPenerimaan ? 'text-green-600' : 'text-red-600'
                     }`}>
-                      {isPenerimaan ? '' : '-'}{formatCurrency(amount?.toString() || '0')}
+                      {isPenerimaan ? '' : '-'}{formatCurrency(Math.abs(toNumber(amount?.toString() || '0')))}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -1074,7 +1133,68 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Duplicate Transaction Warning Modal */}
+      <div className={`fixed inset-0 z-50 overflow-y-auto ${duplicateWarning.isOpen ? 'block' : 'hidden'}`}>
+        <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+            <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+          </div>
+          <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+          <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+            <div>
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
+                <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="mt-3 text-center sm:mt-5">
+                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                  Transaksi Serupa Ditemukan
+                </h3>
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">
+                    Transaksi serupa sudah ada di database:
+                  </p>
+                  {duplicateWarning.transaction && (
+                    <div className="mt-2 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-left">
+                      <p className="text-sm text-yellow-700">
+                        <span className="font-medium">Tanggal:</span> {new Date(duplicateWarning.transaction.tanggal).toLocaleDateString('id-ID')}<br />
+                        <span className="font-medium">Jumlah:</span> {formatCurrency(Math.abs(Number(duplicateWarning.transaction.jumlah)))}<br />
+                        <span className="font-medium">Keterangan:</span> {duplicateWarning.transaction.uraian}
+                      </p>
+                    </div>
+                  )}
+                  <p className="mt-2 text-sm text-gray-500">
+                    Apakah Anda yakin ingin menyimpan transaksi ini?
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+              <button
+                type="button"
+                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-yellow-600 text-base font-medium text-white hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 sm:col-start-2 sm:text-sm"
+                onClick={() => {
+                  if (duplicateWarning.onConfirm) {
+                    duplicateWarning.onConfirm();
+                  }
+                  setDuplicateWarning(prev => ({ ...prev, isOpen: false }));
+                }}
+              >
+                Simpan Tetap
+              </button>
+              <button
+                type="button"
+                className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:col-start-1 sm:text-sm"
+                onClick={() => setDuplicateWarning(prev => ({ ...prev, isOpen: false }))}
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
       {showCategoryManager && (
         <div className="bg-white p-4 rounded-lg shadow-md mb-6">
           <div className="flex justify-between items-center mb-4">

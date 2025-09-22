@@ -44,12 +44,16 @@ export report
 
 
 
-report laba/rugi bersih per bulan (next month should start with previous month's balance) done (changed per month to bar charts) (should also put this in writing)
+
 
 flag double counting
 
 download report
 
+remove time from displaying in tanggal
+
+
+report laba/rugi bersih per bulan (next month should start with previous month's balance) done (changed per month to bar charts) (should also put this in writing) done
 UI for kelola kategori sucks done
 remove account name from local storage done
 find transaction and filtering, sorting done

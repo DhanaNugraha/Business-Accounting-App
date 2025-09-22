@@ -1,8 +1,10 @@
-import { useState, useRef, ChangeEvent, DragEvent } from 'react';
+import React, { useState, useRef, ChangeEvent, DragEvent, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '@/contexts/AppContext';
 import { toast } from 'react-hot-toast';
 import type { TransactionItem } from '@/types';
+import { Dialog, Transition } from '@headlessui/react';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { 
   CloudArrowUpIcon, 
   DocumentArrowDownIcon,
@@ -35,11 +37,42 @@ const ALLOWED_FILE_TYPES = [
   'application/vnd.ms-excel'
 ];
 
+// Helper function to check for duplicate transactions
+const checkForDuplicates = (transactions: TransactionItem[]): TransactionItem[] => {
+  const duplicates: TransactionItem[] = [];
+  const seen = new Map<string, TransactionItem[]>();
+
+  transactions.forEach(tx => {
+    const key = `${tx.tanggal}_${tx.uraian}_${tx.jumlah}`;
+    if (seen.has(key)) {
+      const existing = seen.get(key)!;
+      if (existing.length === 1) {
+        duplicates.push(existing[0]);
+      }
+      duplicates.push(tx);
+      existing.push(tx);
+    } else {
+      seen.set(key, [tx]);
+    }
+  });
+
+  return duplicates;
+};
+
 const UploadPage = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [validationError, setValidationError] = useState<FileValidationError | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [duplicates, setDuplicates] = useState<{
+    isOpen: boolean;
+    items: TransactionItem[];
+    onConfirm: (() => void) | null;
+  }>({
+    isOpen: false,
+    items: [],
+    onConfirm: null
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { dispatch, state } = useAppContext();
   const navigate = useNavigate();
@@ -66,15 +99,32 @@ const UploadPage = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Check for duplicate transactions in the uploaded data
+  const checkAndHandleDuplicates = useCallback((accounts: AccountData[], onSuccess: () => void) => {
+    const allTransactions = accounts.flatMap(acc => acc.transactions || []);
+    const duplicateItems = checkForDuplicates(allTransactions);
+    
+    if (duplicateItems.length > 0) {
+      setDuplicates({
+        isOpen: true,
+        items: duplicateItems,
+        onConfirm: () => {
+          processAndUpdateAccounts(accounts);
+          onSuccess();
+        }
+      });
+    } else {
+      processAndUpdateAccounts(accounts);
+      onSuccess();
+    }
+  }, []);
+
   // Process and update accounts in the app state
   const processAndUpdateAccounts = (accounts: AccountData[]): boolean => {
     if (!accounts || accounts.length === 0) return false;
     
-    const mappedAccounts = accounts.map(account => ({
-      id: account.id || `acc-${Math.random().toString(36).substr(2, 9)}`,
-      name: account.name || 'Akun Tanpa Nama',
-      balance: typeof account.balance === 'number' ? account.balance : 0,
-      transactions: (account.transactions || []).map(tx => {
+    const mappedAccounts = accounts.map(account => {
+      const transactions = (account.transactions || []).map(tx => {
         // Ensure we have proper default values for the new structure
         const defaultPenerimaan = typeof tx.penerimaan === 'string' ? {} : (tx.penerimaan || {});
         const defaultPengeluaran = typeof tx.pengeluaran === 'string' ? {} : (tx.pengeluaran || {});
@@ -97,16 +147,23 @@ const UploadPage = () => {
           penerimaan: defaultPenerimaan,
           pengeluaran: defaultPengeluaran,
           jumlah: jumlah
-        };
-      }),
-      code: account.code,
-      type: account.type,
-      currency: account.currency || 'IDR',
-      isActive: account.isActive !== false,
-      createdAt: account.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }));
-    
+        } as TransactionItem;
+      });
+      
+      return {
+        id: account.id || `acc-${Math.random().toString(36).substr(2, 9)}`,
+        name: account.name || 'Akun Tanpa Nama',
+        balance: typeof account.balance === 'number' ? account.balance : 0,
+        transactions: transactions,
+        code: account.code,
+        type: account.type,
+        currency: account.currency || 'IDR',
+        isActive: account.isActive !== false,
+        createdAt: account.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+    });
+        
     dispatch({ type: 'SET_ACCOUNTS', payload: mappedAccounts });
     
     // Set the first account as current if none is selected
@@ -363,16 +420,12 @@ const UploadPage = () => {
         throw new Error('Tidak ada data yang dapat diproses dari file ini');
       }
 
-      // Update the app state with the processed accounts
-      const success = processAndUpdateAccounts(accounts);
-      
-      if (success) {
+      // Check for duplicates and handle them
+      checkAndHandleDuplicates(accounts, () => {
         toast.success('File berhasil diunggah dan diproses');
         // Navigate to the editor page
         navigate('/editor');
-      } else {
-        throw new Error('Gagal memproses data akun');
-      }
+      });
     } catch (error) {
       console.error('Error processing file:', error);
       const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan saat memproses file';
@@ -420,16 +473,12 @@ const UploadPage = () => {
         throw new Error('Tidak ada data yang dapat diproses dari file ini');
       }
       
-      // Update the app state with the processed accounts
-      const success = processAndUpdateAccounts(accounts);
-      
-      if (success) {
+      // Check for duplicates and handle them
+      checkAndHandleDuplicates(accounts, () => {
         toast.success('File berhasil diunggah dan diproses');
         // Navigate to the editor page
         navigate('/editor');
-      } else {
-        throw new Error('Gagal memproses data akun');
-      }
+      });
     } catch (error) {
       console.error('Error processing file:', error);
       const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan saat memproses file';
@@ -441,6 +490,111 @@ const UploadPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      {/* Duplicate Transactions Modal */}
+      <Transition.Root show={duplicates.isOpen} as={React.Fragment}>
+        <Dialog as="div" className="relative z-10" onClose={() => setDuplicates(prev => ({ ...prev, isOpen: false }))}>
+          <Transition.Child
+            as={React.Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 z-10 overflow-y-auto">
+            <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+              <Transition.Child
+                as={React.Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                enterTo="opacity-100 translate-y-0 sm:scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 translate-y-0 sm:scale-100"
+                leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+              >
+                <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl sm:p-6">
+                  <div className="sm:flex sm:items-start">
+                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-yellow-100 sm:mx-0 sm:h-10 sm:w-10">
+                      <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" aria-hidden="true" />
+                    </div>
+                    <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                      <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
+                        Transaksi Ganda Ditemukan
+                      </Dialog.Title>
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-500">
+                          Ditemukan {duplicates.items.length} transaksi yang mungkin duplikat. Apakah Anda yakin ingin melanjutkan?
+                        </p>
+                        <div className="mt-4 max-h-60 overflow-y-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uraian</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {duplicates.items.slice(0, 10).map((tx, idx) => (
+                                <tr key={`${tx.id}-${idx}`}>
+                                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-900">
+                                    {new Date(tx.tanggal).toLocaleDateString('id-ID')}
+                                  </td>
+                                  <td className="px-6 py-2 text-sm text-gray-900">
+                                    {tx.uraian}
+                                  </td>
+                                  <td className="px-6 py-2 text-right text-sm text-gray-900">
+                                    {new Intl.NumberFormat('id-ID', {
+                                      style: 'currency',
+                                      currency: 'IDR',
+                                      minimumFractionDigits: 0,
+                                      maximumFractionDigits: 0
+                                    }).format(tx.jumlah)}
+                                  </td>
+                                </tr>
+                              ))}
+                              {duplicates.items.length > 10 && (
+                                <tr>
+                                  <td colSpan={3} className="px-6 py-2 text-center text-sm text-gray-500">
+                                    ...dan {duplicates.items.length - 10} transaksi lainnya
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                    <button
+                      type="button"
+                      className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto"
+                      onClick={() => {
+                        if (duplicates.onConfirm) duplicates.onConfirm();
+                        setDuplicates(prev => ({ ...prev, isOpen: false }));
+                      }}
+                    >
+                      Lanjutkan
+                    </button>
+                    <button
+                      type="button"
+                      className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                      onClick={() => setDuplicates(prev => ({ ...prev, isOpen: false }))}
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition.Root>
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Unggah File Transaksi</h1>
