@@ -26,19 +26,107 @@ export const CategoryManager = () => {
     setIsAdding(false);
   };
 
-  const handleUpdateCategory = (id: string) => {
-    const category = state.categories.find(cat => cat.id === id);
-    if (!category) return;
+  const handleUpdateCategory = (id: string, newName?: string) => {
+    // Use the provided newName or fall back to formData.name
+    const nameToUse = newName || formData.name.trim();
+    
+    // Don't proceed if the name is empty
+    if (!nameToUse) return;
+    
+    // Check if we're updating a context category (has ID) or a transaction category (prefixed with 'tx-')
+    const isTransactionCategory = id.startsWith('tx-');
+    const oldName = isTransactionCategory ? id.substring(3) : null;
+    
+    // Find the category in context (if it exists)
+    const contextCategory = isTransactionCategory ? null : state.categories.find(cat => cat.id === id);
+    
+    // For transaction categories, we need to update all transactions that use this category
+    if (isTransactionCategory && oldName) {
+      // Check if the new name already exists in context categories
+      const nameExistsInContext = state.categories.some(
+        cat => cat.name.toLowerCase() === nameToUse.toLowerCase()
+      );
+      
+      if (nameExistsInContext) {
+        alert('Kategori dengan nama yang sama sudah ada di daftar kategori');
+        return;
+      }
+      
+      // Update all transactions that use this category
+      const updatedAccounts = state.accounts.map(account => {
+        const updatedTransactions = account.transactions.map(tx => {
+          // Create a deep copy of the transaction
+          const updatedTx = { 
+            ...tx,
+            penerimaan: { ...(tx.penerimaan || {}) },
+            pengeluaran: { ...(tx.pengeluaran || {}) }
+          };
+          
+          // Handle penerimaan
+          if (updatedTx.penerimaan && oldName in updatedTx.penerimaan) {
+            // Move the value to the new category name
+            updatedTx.penerimaan[nameToUse] = updatedTx.penerimaan[oldName];
+            // Remove the old category name
+            delete updatedTx.penerimaan[oldName];
+          }
+          
+          // Handle pengeluaran
+          if (updatedTx.pengeluaran && oldName in updatedTx.pengeluaran) {
+            // Move the value to the new category name
+            updatedTx.pengeluaran[nameToUse] = updatedTx.pengeluaran[oldName];
+            // Remove the old category name
+            delete updatedTx.pengeluaran[oldName];
+          }
+          
+          return updatedTx;
+        });
+        
+        return {
+          ...account,
+          transactions: updatedTransactions
+        };
+      });
+      
+      // Update the accounts in the state
+      updatedAccounts.forEach(account => {
+        dispatch({ 
+          type: 'UPDATE_ACCOUNT', 
+          payload: { 
+            accountName: account.name, 
+            transactions: account.transactions 
+          } 
+        });
+      });
+      
+      setEditingId(null);
+      setFormData({ name: '', type: 'pengeluaran' });
+      return;
+    }
+    
+    // For context categories
+    if (contextCategory) {
+      // Check if a category with the same name already exists (case insensitive)
+      const nameExists = state.categories.some(
+        cat => 
+          cat.id !== id && 
+          cat.name.toLowerCase() === nameToUse.toLowerCase()
+      );
 
-    const updatedCategory = {
-      ...category,
-      name: formData.name.trim() || category.name,
-      type: formData.type
-    };
+      if (nameExists) {
+        alert('Kategori dengan nama yang sama sudah ada');
+        return;
+      }
 
-    dispatch({ type: 'UPDATE_CATEGORY', payload: updatedCategory });
-    setEditingId(null);
-    setFormData({ name: '', type: 'pengeluaran' });
+      const updatedCategory = {
+        ...contextCategory,
+        name: nameToUse,
+        type: formData.type
+      };
+
+      dispatch({ type: 'UPDATE_CATEGORY', payload: updatedCategory });
+      setEditingId(null);
+      setFormData({ name: '', type: 'pengeluaran' });
+    }
   };
 
   const handleDeleteCategory = (id: string) => {
