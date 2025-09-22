@@ -24,8 +24,8 @@ export const CategoryManager = () => {
     if (!formData.name.trim()) {
       newErrors.name = 'Nama kategori tidak boleh kosong';
       isValid = false;
-    } else if (formData.name.trim().length < 3) {
-      newErrors.name = 'Nama kategori minimal 3 karakter';
+    } else if (formData.name.trim().length < 1) {
+      newErrors.name = 'Nama kategori minimal 1 karakter';
       isValid = false;
     }
 
@@ -67,8 +67,8 @@ export const CategoryManager = () => {
       return;
     }
     
-    if (nameToUse.length < 3) {
-      setFormErrors({ ...formErrors, name: 'Nama kategori minimal 3 karakter' });
+    if (nameToUse.length < 1) {
+      setFormErrors({ ...formErrors, name: 'Nama kategori minimal 1 karakter' });
       return;
     }
     
