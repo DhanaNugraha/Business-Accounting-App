@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import type { TransactionItem } from '@/types';
 import { TransactionEditor } from '@/components/TransactionEditor';
+import { CategoryManager } from '@/components/CategoryManager';
 import { AccountSelector } from '@/components/AccountSelector';
 import { toast } from 'react-hot-toast';
-import { PlusIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, ArrowDownTrayIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline';
 import useBeforeUnload from '@/hooks/useBeforeUnload';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useExportReminder } from '@/components/ExportReminderToast';
@@ -12,6 +13,7 @@ import { useExportReminder } from '@/components/ExportReminderToast';
 export const EditorPage = () => {
   const { state, dispatch } = useAppContext();
   const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<'transactions' | 'categories'>('transactions');
   const { reminderInterval, isReminderActive } = useSettings();
   const { startReminder, stopReminder } = useExportReminder(reminderInterval);
   const hasUnsavedChanges = useRef(false);
@@ -188,18 +190,47 @@ export const EditorPage = () => {
           </button>
         </div>
       )}
-      {selectedAccount ? (
+      {selectedAccount && (
         <div className="mt-6 bg-white shadow overflow-hidden sm:rounded-lg">
-        <div className="px-4 py-5 sm:px-6
-          ">
-          <TransactionEditor 
-            accountName={selectedAccount.name}
-            transactions={selectedAccount.transactions} 
-            onSave={handleSaveTransactions}
-          />
+          <div className="border-b border-gray-200">
+            <nav className="flex -mb-px">
+              <button
+                onClick={() => setActiveTab('transactions')}
+                className={`${activeTab === 'transactions' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} 
+                  whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center`}
+              >
+                <ListBulletIcon className="h-5 w-5 mr-2" />
+                Transaksi
+              </button>
+              <button
+                onClick={() => setActiveTab('categories')}
+                className={`${activeTab === 'categories' 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} 
+                  whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center`}
+              >
+                <Squares2X2Icon className="h-5 w-5 mr-2" />
+                Kelola Kategori
+              </button>
+            </nav>
+          </div>
+          <div className="px-4 py-5 sm:px-6">
+            {activeTab === 'transactions' ? (
+              <TransactionEditor 
+                accountName={selectedAccount.name}
+                transactions={selectedAccount.transactions} 
+                onSave={handleSaveTransactions}
+              />
+            ) : (
+              <div className="p-4">
+                <CategoryManager />
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-      ) : null}
+      )}
     </div>
   );
 };

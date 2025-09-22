@@ -5,6 +5,7 @@ import { TrashIcon, PencilIcon, PlusIcon, ChartBarIcon, XMarkIcon } from '@heroi
 import { toast } from 'react-hot-toast';
 import { ConfirmationDialog } from '@/components/common/ConfirmationDialog';
 import { getDateValidationError } from '@/utils/validators';
+import { useAppContext } from '@/contexts/AppContext';
 
 interface SimpleFormData {
   id?: string;
@@ -22,6 +23,13 @@ interface TransactionEditorProps {
 }
 
 export const TransactionEditor = ({ transactions, onSave, accountName }: TransactionEditorProps) => {
+  const { state: { categories } } = useAppContext();
+  
+  // Debug effect to log category changes
+  useEffect(() => {
+    console.log('Categories updated:', categories);
+  }, [categories]);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
   const navigate = useNavigate();
   const [isAdding, setIsAdding] = useState(false);
   // Calculate running balance for transactions
@@ -49,23 +57,65 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     jumlah: '0'
   });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Update the error state type to allow undefined values for clearing errors
+  const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<{isOpen: boolean, id: string | null}>({ 
     isOpen: false, 
     id: null 
   });
 
-  // Extract unique categories from existing transactions
-  const existingCategories = useMemo(() => {
-    const categories = new Set<string>();
+  // Extract unique categories from context and transactions
+  const availableCategories = useMemo(() => {
+    console.log('Recalculating available categories');
     
-    editedTransactions.forEach(tx => {
-      Object.keys(tx.penerimaan || {}).forEach(cat => categories.add(cat));
-      Object.keys(tx.pengeluaran || {}).forEach(cat => categories.add(cat));
+    // Create a map of categories from context
+    const contextCategories = {
+      penerimaan: categories
+        .filter(cat => cat.type === 'penerimaan')
+        .map(cat => cat.name),
+      pengeluaran: categories
+        .filter(cat => cat.type === 'pengeluaran')
+        .map(cat => cat.name)
+    };
+
+    console.log('Context categories:', contextCategories);
+
+    // Extract categories from existing transactions
+    const transactionCategories = {
+      penerimaan: new Set<string>(),
+      pengeluaran: new Set<string>()
+    };
+
+    transactions.forEach(tx => {
+      Object.keys(tx.penerimaan || {}).forEach(cat => 
+        transactionCategories.penerimaan.add(cat)
+      );
+      Object.keys(tx.pengeluaran || {}).forEach(cat => 
+        transactionCategories.pengeluaran.add(cat)
+      );
     });
-    
-    return Array.from(categories).sort();
-  }, [editedTransactions]);
+
+    // Combine context categories with transaction categories
+    const combinedCategories = {
+      penerimaan: Array.from(new Set([
+        ...contextCategories.penerimaan,
+        ...transactionCategories.penerimaan
+      ])),
+      pengeluaran: Array.from(new Set([
+        ...contextCategories.pengeluaran,
+        ...transactionCategories.pengeluaran
+      ]))
+    };
+
+    console.log('Combined categories:', combinedCategories);
+    return combinedCategories;
+
+  }, [transactions, categories]);
+
+  // Debug effect to log available categories
+  useEffect(() => {
+    console.log('Available categories:', availableCategories);
+  }, [availableCategories]);
 
   // Update local state when transactions prop changes
   useEffect(() => {
@@ -204,7 +254,6 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
       maximumFractionDigits: 0,
     }).format(Number(value) || 0);
   }, []);
-
 
   const handleSaveTransaction = useCallback((e: React.FormEvent): void => {
     e.preventDefault();
@@ -346,33 +395,8 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
         <tbody className="bg-white divide-y divide-gray-200">
           {editedTransactions.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-6 py-8 text-center">
-                <div className="flex flex-col items-center justify-center text-gray-400">
-                  <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-700">Tidak ada transaksi</h3>
-                  <p className="mt-1 text-sm text-gray-500">Mulai dengan menambahkan transaksi pertama Anda.</p>
-                  <div className="mt-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsAdding(true);
-                        setSimpleForm({
-                          tanggal: new Date().toISOString().split('T')[0],
-                          uraian: '',
-                          jumlah: '',
-                          tipe: 'penerimaan',
-                          kategori: ''
-                        });
-                      }}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                    >
-                      <PlusIcon className="-ml-1 mr-2 h-4 w-4" />
-                      Tambah Transaksi
-                    </button>
-                  </div>
-                </div>
+              <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
+                Tidak ada transaksi. Klik tombol "Tambah Transaksi" untuk menambahkan transaksi baru.
               </td>
             </tr>
           ) : (
@@ -561,14 +585,19 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
               placeholder="Contoh: Gaji, Belanja, dll"
               autoComplete="off"
             />
+            {/* Category selection UI */}
             <datalist id="kategori-list">
-              {existingCategories.map((category) => (
-                <option key={category} value={category} />
+              {availableCategories[simpleForm.tipe]?.map((category) => (
+                <option key={`${simpleForm.tipe}-${category}`} value={category}>
+                  {category}
+                </option>
               ))}
             </datalist>
-            {existingCategories.length > 0 && (
+
+            {/* Quick category buttons */}
+            {availableCategories[simpleForm.tipe]?.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {existingCategories.slice(0, 5).map((category) => (
+                {availableCategories[simpleForm.tipe].map((category) => (
                   <button
                     key={category}
                     type="button"
@@ -592,10 +621,11 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
                 ))}
               </div>
             )}
+
+            {errors.kategori && (
+              <p className="mt-1 text-sm text-red-600">{errors.kategori}</p>
+            )}
           </div>
-          {errors.kategori && (
-            <p className="mt-1 text-sm text-red-600">{errors.kategori}</p>
-          )}
         </div>
 
         {/* Uraian */}
@@ -685,6 +715,58 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
 
   return (
     <div className="space-y-6">
+      {showCategoryManager && (
+        <div className="bg-white p-4 rounded-lg shadow-md mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium">Kelola Kategori</h3>
+            <button
+              onClick={() => setShowCategoryManager(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="p-4 bg-gray-50 rounded">
+            <p className="text-sm text-gray-600 mb-4">
+              Tambah, edit, atau hapus kategori yang tersedia untuk transaksi.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium text-green-600 mb-2">Kategori Penerimaan</h4>
+                <div className="flex flex-wrap gap-2">
+                  {availableCategories.penerimaan.map(cat => (
+                    <span key={cat} className="px-2 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+                      {cat}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h4 className="font-medium text-red-600 mb-2">Kategori Pengeluaran</h4>
+                <div className="flex flex-wrap gap-2">
+                  {availableCategories.pengeluaran.map(cat => (
+                    <span key={cat} className="px-2 py-1 bg-red-100 text-red-800 text-sm rounded-full">
+                      {cat}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="pt-2">
+                <button
+                  onClick={() => {
+                    // Open the full category manager in a modal or new page
+                    // This is a placeholder - you'll need to implement the actual modal or navigation
+                    alert('Buka halaman manajemen kategori lengkap');
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Kelola Kategori Lengkap →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Daftar Transaksi</h2>

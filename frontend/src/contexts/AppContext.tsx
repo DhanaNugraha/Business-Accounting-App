@@ -10,9 +10,17 @@ interface AccountBase {
 interface AppState {
   accounts: AccountBase[];
   currentAccount: string | null;
+  categories: Category[];
   isLoading: boolean;
   error: string | null;
   isBackendReady: boolean;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  type: 'penerimaan' | 'pengeluaran';
+  description?: string;
 }
 
 type AppAction =
@@ -20,6 +28,9 @@ type AppAction =
   | { type: 'SET_CURRENT_ACCOUNT'; payload: string | null }
   | { type: 'UPDATE_ACCOUNT'; payload: { accountName: string; transactions: TransactionItem[] } }
   | { type: 'ADD_ACCOUNT'; payload: AccountBase }
+  | { type: 'ADD_CATEGORY'; payload: Category }
+  | { type: 'REMOVE_CATEGORY'; payload: { id: string } }
+  | { type: 'UPDATE_CATEGORY'; payload: Category }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_BACKEND_READY'; payload: boolean };
@@ -27,6 +38,7 @@ type AppAction =
 const initialState: AppState = {
   accounts: [],
   currentAccount: null,
+  categories: [],
   isLoading: false,
   error: null,
   isBackendReady: true,
@@ -106,65 +118,73 @@ const createAccount = (name: string, transactions: TransactionItem[] = []): Acco
 // Main reducer function
 const appReducer = (state: AppState, action: AppAction): AppState => {
   switch (action.type) {
-    case 'SET_ACCOUNTS': {
-      const accounts = action.payload.map(account => ({
-        ...account,
-        balance: calculateAccountBalance(account.transactions),
-      }));
-
+    case 'SET_ACCOUNTS':
       return {
         ...state,
-        accounts,
-        currentAccount: state.currentAccount || (accounts[0]?.name || null),
+        accounts: action.payload,
         isLoading: false,
         error: null,
       };
-    }
-
     case 'SET_CURRENT_ACCOUNT':
       return {
         ...state,
         currentAccount: action.payload,
       };
-
     case 'UPDATE_ACCOUNT': {
       const { accountName, transactions } = action.payload;
-      const updatedAccounts = state.accounts.map(account => 
+      const updatedAccounts = state.accounts.map(account =>
         account.name === accountName
           ? createAccount(accountName, transactions)
           : account
       );
-      return { ...state, accounts: updatedAccounts };
-    }
-
-    case 'ADD_ACCOUNT': {
-      const accountName = action.payload.name || `Akun Baru ${state.accounts.length + 1}`;
-      
-      if (state.accounts.some(acc => acc.name === accountName)) {
-        return state;
-      }
-      
-      const newAccount = createAccount(
-        accountName,
-        action.payload.transactions || []
-      );
-      
       return {
         ...state,
-        accounts: [...state.accounts, newAccount],
-        currentAccount: newAccount.name,
+        accounts: updatedAccounts,
+        isLoading: false,
+        error: null,
       };
     }
-
+    case 'ADD_ACCOUNT':
+      return {
+        ...state,
+        accounts: [...state.accounts, action.payload],
+        currentAccount: action.payload.name,
+        isLoading: false,
+        error: null,
+      };
+    case 'ADD_CATEGORY':
+      return {
+        ...state,
+        categories: [...state.categories, action.payload],
+      };
+    case 'REMOVE_CATEGORY':
+      return {
+        ...state,
+        categories: state.categories.filter(cat => cat.id !== action.payload.id),
+      };
+    case 'UPDATE_CATEGORY':
+      return {
+        ...state,
+        categories: state.categories.map(cat => 
+          cat.id === action.payload.id ? action.payload : cat
+        ),
+      };
     case 'SET_LOADING':
-      return { ...state, isLoading: action.payload };
-
+      return {
+        ...state,
+        isLoading: action.payload,
+      };
     case 'SET_ERROR':
-      return { ...state, error: action.payload, isLoading: false };
-
+      return {
+        ...state,
+        error: action.payload,
+        isLoading: false,
+      };
     case 'SET_BACKEND_READY':
-      return { ...state, isBackendReady: action.payload };
-
+      return {
+        ...state,
+        isBackendReady: action.payload,
+      };
     default:
       return state;
   }
