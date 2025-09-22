@@ -38,20 +38,20 @@ export report
 
 
 
-find transaction and filtering, sorting
 
-mobile view
 
-flag double counting
+
+
+remove account name from local storage
 
 report laba/rugi bersih per bulan (next month should start with previous month's balance) done (changed per month to bar charts) (should also put this in writing)
 
-remove account name from local storage
+flag double counting
 
 download report
 
 
-
+find transaction and filtering, sorting done
 bisa bikin multiple kategori tanpa transaksi (done)
 cors save gagal done
 

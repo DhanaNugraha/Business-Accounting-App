@@ -192,38 +192,6 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  
-
-  // Load state from localStorage on mount
-  useEffect(() => {
-    try {
-      const savedState = localStorage.getItem('accountingAppState');
-      if (savedState) {
-        const parsedState = JSON.parse(savedState);
-        dispatch({ type: 'SET_ACCOUNTS', payload: parsedState.accounts || [] });
-        if (parsedState.currentAccount) {
-          dispatch({ type: 'SET_CURRENT_ACCOUNT', payload: parsedState.currentAccount });
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load state from localStorage', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to load saved data' });
-    }
-  }, []);
-
-  // Save state to localStorage when it changes
-  useEffect(() => {
-    try {
-      const { accounts, currentAccount } = state;
-      localStorage.setItem('accountingAppState', JSON.stringify({
-        accounts,
-        currentAccount,
-      }));
-    } catch (error) {
-      console.error('Failed to save state to localStorage', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to save data' });
-    }
-  }, [state.accounts, state.currentAccount]);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>
