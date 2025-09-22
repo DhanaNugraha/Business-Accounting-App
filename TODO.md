@@ -48,6 +48,14 @@
   - [x] Progress indicators
 - [x] Editor Page
   - [x] Transaction table with inline editing
+  - [x] Category management tab
+    - [x] Add/Edit/Delete categories
+    - [x] Categorize transactions
+    - [x] Filter transactions by category
+  - [x] Fix CORS issues with Excel export
+    - [x] Update API client configuration
+    - [x] Implement proper CORS headers
+    - [x] Handle binary response for file downloads
   - [x] Renamed 'saldo' to 'jumlah' for transaction amounts
   - [x] Implemented 'saldo_berjalan' for running balance calculation
   - [x] Add/delete transaction functionality
@@ -164,10 +172,12 @@
 - [x] Optimize reminder settings for both mobile and desktop views
 - [x] Updated documentation and comments
 
-## Testing
-- [ ] Unit tests for utility functions
-- [ ] Integration tests for API endpoints
+## Testing & Quality
+- [ ] Unit tests for backend API
+- [ ] Integration tests for frontend components
 - [ ] End-to-end tests for critical user flows
+  - [ ] Test category management
+  - [ ] Test Excel export functionality
 - [ ] Cross-browser testing
 - [ ] Test account switching in reports
 - [ ] Test report generation with different account data
