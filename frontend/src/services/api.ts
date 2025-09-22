@@ -228,62 +228,33 @@ export const downloadTemplate = async (): Promise<void> => {
   }
 };
 
-/**
- * Save transactions and download the updated file
- * @param data Transaction data to save
- */
-export const saveTransactions = async (data: any): Promise<void> => {
-  try {
-    if (!data) {
-      throw new Error('No data provided');
-    }
-    
-    console.log('Saving transactions:', data);
-    
-    const response = await apiClient.post<Blob>('/api/save', data, {
-      responseType: 'blob',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      },
-    });
 
+/**
+ * Export transactions to Excel
+ * @param accounts Array of account data to export
+ */
+export const exportToExcel = async (accounts: Array<{ name: string; transactions: any[] }>): Promise<Blob> => {
+  try {
+    const response = await apiClient.post<Blob>(
+      '/api/save',
+      { accounts },
+      { 
+        responseType: 'blob',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        },
+      }
+    );
+    
     if (!response.data) {
       throw new Error('No data received from server');
     }
-
-    const contentDisposition = response.headers['content-disposition'] || '';
-    const filenameMatch = contentDisposition.match(/filename[^=]*=([^;\n]*)/);
-    const filename = filenameMatch ? 
-      filenameMatch[1].replace(/['"]/g, '') : 
-      `transactions_${new Date().toISOString().slice(0, 10)}.xlsx`;
     
-    // Create and trigger download
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    
-    // Cleanup
-    if (link.parentNode) {
-      link.parentNode.removeChild(link);
-    }
-    window.URL.revokeObjectURL(url);
-    
-  } catch (error: unknown) {
-    console.error('Error saving transactions:', error);
-    let errorMessage = 'Unknown error occurred';
-    
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      if ('response' in error && error.response) {
-        const response = error.response as any;
-        errorMessage = response.data?.detail || response.data?.message || errorMessage;
-      }
-    }
-    
-    throw new Error(`Failed to save transactions: ${errorMessage}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error exporting to Excel:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new Error(`Failed to export to Excel: ${errorMessage}`);
   }
 };

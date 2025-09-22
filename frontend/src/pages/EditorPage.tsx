@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
+import { exportToExcel } from '@/services/api';
 import type { TransactionItem } from '@/types';
 import { TransactionEditor } from '@/components/TransactionEditor';
 import { CategoryManager } from '@/components/CategoryManager';
@@ -108,22 +109,14 @@ export const EditorPage = () => {
 
     setIsSaving(true);
     try {
-      const saveData = {
-        accounts: state.accounts.map(account => ({
+      const blob = await exportToExcel(
+        state.accounts.map(account => ({
           name: account.name,
           transactions: account.transactions
         }))
-      };
+      );
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(saveData),
-      });
-      
-      if (!response.ok) throw new Error(`Error: ${response.status}`);
-      
-      const blob = await response.blob();
+      // Create and trigger download
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -131,6 +124,7 @@ export const EditorPage = () => {
       document.body.appendChild(a);
       a.click();
       
+      // Cleanup
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       
