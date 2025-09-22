@@ -313,36 +313,71 @@ const UploadPage = () => {
           
           // Helper function to parse Excel date (either serial number or formatted string)
           const parseExcelDate = (value: any): string => {
-            if (!value && value !== 0) return new Date().toISOString().split('T')[0];
+            if (!value && value !== 0) return formatLocalDate(new Date());
             
             // If it's already a date string in YYYY-MM-DD format
             if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
               return value;
             }
             
-            // If it's an Excel serial date number (days since 1900-01-01)
+            // If it's an Excel serial date number (days since 1899-12-30)
             if (typeof value === 'number' && value > 0) {
-              // Excel's date system starts from 1900-01-01 (with 1900 incorrectly treated as a leap year)
-              // JavaScript's Date uses 1970-01-01 as epoch, so we need to adjust
+              // Create a date object for the Excel epoch (December 30, 1899)
               const excelEpoch = new Date('1899-12-30T00:00:00.000Z');
-              const date = new Date(excelEpoch.getTime() + value * 86400000);
+              // Add the number of days (value) to the epoch
+              const date = new Date(excelEpoch.getTime() + Math.round((value - 1) * 86400000));
               
               // Handle Excel's incorrect leap year in 1900
               if (value >= 60) {
-                date.setDate(date.getDate() - 1);
+                date.setDate(date.getDate() + 1);
               }
               
-              return date.toISOString().split('T')[0];
+              return formatLocalDate(date);
             }
             
-            // Try parsing as date string (MM/DD/YYYY or DD/MM/YYYY)
-            const parsedDate = new Date(value);
-            if (!isNaN(parsedDate.getTime())) {
-              return parsedDate.toISOString().split('T')[0];
+            // Try parsing as date string (DD/MM/YYYY or other formats)
+            if (typeof value === 'string') {
+              // Handle DD/MM/YYYY format
+              const parts = value.split(/[-/.]/);
+              if (parts.length === 3) {
+                // Try to determine the format (DD/MM/YYYY or MM/DD/YYYY)
+                let day, month, year;
+                
+                if (parts[0].length === 4) {
+                  // YYYY-MM-DD format
+                  [year, month, day] = parts.map(Number);
+                  month -= 1; // JavaScript months are 0-indexed
+                } else if (parts[1].length > 2) {
+                  // Handle case where year might be in the middle (e.g., MM/YYYY/DD)
+                  return formatLocalDate(new Date(value));
+                } else {
+                  // Assume DD/MM/YYYY format (common in Indonesia)
+                  [day, month, year] = parts.map(Number);
+                  month -= 1; // JavaScript months are 0-indexed
+                }
+                
+                // Create date in local timezone without time component
+                const date = new Date(year, month, day);
+                return formatLocalDate(date);
+              }
+              
+              // Fallback to standard date parsing
+              const parsedDate = new Date(value);
+              if (!isNaN(parsedDate.getTime())) {
+                return formatLocalDate(parsedDate);
+              }
             }
             
             // Fallback to current date
-            return new Date().toISOString().split('T')[0];
+            return formatLocalDate(new Date());
+            
+            // Helper function to format date as YYYY-MM-DD in local timezone
+            function formatLocalDate(date: Date): string {
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            }
           };
           
           // Get the raw date value from Excel
