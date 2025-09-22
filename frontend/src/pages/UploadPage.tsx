@@ -577,7 +577,11 @@ const UploadPage = () => {
                               {duplicates.items.slice(0, 10).map((tx, idx) => (
                                 <tr key={`${tx.id}-${idx}`}>
                                   <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-900">
-                                    {new Date(tx.tanggal).toLocaleDateString('id-ID')}
+                                    {new Date(tx.tanggal).toLocaleDateString('id-ID', {
+                                      day: '2-digit',
+                                      month: 'long',
+                                      year: 'numeric'
+                                    })}
                                   </td>
                                   <td className="px-6 py-2 text-sm text-gray-900">
                                     {tx.uraian}
