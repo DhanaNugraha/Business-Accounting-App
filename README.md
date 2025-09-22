@@ -1,48 +1,64 @@
-# Business Accounting App
+# Aplikasi Akuntansi Bisnis
 
-A modern web application for managing business accounting tasks, generating financial reports, and analyzing financial data. This application provides a user-friendly interface for uploading financial data, generating reports, and visualizing financial metrics.
+Aplikasi web modern untuk mengelola transaksi keuangan bisnis dengan dukungan multi-akun (contoh: Kas, Bank, E-Wallet, dll). Aplikasi ini berjalan sepenuhnya di sisi klien (client-side) dan **tidak menggunakan database server**, sehingga semua data keuangan Anda tetap aman di perangkat Anda sendiri.
 
-## ✨ Features
+> **Keunggulan**: Aplikasi ini menggunakan format Excel yang standar, sehingga data Anda tidak terkunci dalam sistem. Anda dapat:
+> - Membuka file Excel yang ada langsung di aplikasi
+> - Mengekspor data kapan saja ke format Excel standar
+> - Melanjutkan pengeditan di Microsoft Excel, Google Sheets, atau aplikasi spreadsheet lainnya
+> - Tidak ada ketergantungan pada platform ini - data Anda tetap dapat diakses bahkan tanpa aplikasi ini
 
-- **Template Generation**: Download pre-formatted Excel templates for standardized data entry
-- **Secure File Upload**: Upload and validate financial data with comprehensive error checking
-- **Comprehensive Reports**: Generate detailed financial reports including:
-  - Balance Sheet
-  - Income Statement
-  - Cash Flow Statement
-- **Interactive Visualizations**: Dynamic charts and graphs for better financial insights
-- **Responsive Design**: Fully responsive interface that works on all device sizes
-- **Data Validation**: Client and server-side validation for data integrity
-- **Error Handling**: Comprehensive error messages and validation feedback
+> **Penting**: Aplikasi ini tidak menyimpan data sensitif Anda di server manapun. Semua data diproses di browser Anda. Pastikan untuk mengekspor (export) data Anda secara berkala untuk menghindari kehilangan data saat menutup browser atau me-refresh halaman.
 
-## 🚀 Tech Stack
+## ✨ Fitur Utama
+
+- **Manajemen Multi-Akun**: Dukungan untuk beberapa akun dengan tipe yang dapat disesuaikan (contoh: Kas, Bank, E-Wallet, dll)
+- **Template Excel**: Unduh template Excel yang sudah diformat dengan standar akuntansi
+- **Unggah Data**: Unggah file Excel dengan validasi data yang komprehensif
+- **Editor Transaksi**: 
+  - Tambah, edit, dan hapus transaksi
+  - Hitung saldo berjalan (running balance) otomatis
+  - Kategori transaksi yang dinamis
+- **Manajemen Kategori**: 
+  - Tambah/edit/hapus kategori penerimaan dan pengeluaran
+  - Filter transaksi berdasarkan kategori
+- **Laporan Keuangan**: 
+  - Ringkasan keuangan harian/bulanan/tahunan
+  - Visualisasi data dengan grafik interaktif
+  - Ekspor laporan ke Excel/PDF
+- **Pengingat Ekspor**: 
+  - Notifikasi pengingat untuk mengekspor data secara berkala
+  - Pengaturan interval yang dapat disesuaikan
+- **Antarmuka Responsif**: Dapat digunakan di berbagai perangkat (desktop/tablet/mobile)
+
+## 🛠️ Teknologi yang Digunakan
 
 ### Backend
-- **Python 3.11+**: Core programming language
-- **FastAPI**: Modern, fast web framework for building APIs
-- **Pandas**: Data manipulation and analysis
-- **Uvicorn**: ASGI server for running FastAPI
-- **Pydantic**: Data validation and settings management
+- **Python 3.11+**: Bahasa pemrograman utama
+- **FastAPI**: Framework web modern untuk membangun API
+- **Pandas + openpyxl**: Manipulasi data dan operasi Excel
+- **Uvicorn**: ASGI server untuk menjalankan FastAPI
+- **Pydantic**: Validasi data dan manajemen pengaturan
 
 ### Frontend
-- **React 18**: Frontend library for building user interfaces
-- **TypeScript**: Type-safe JavaScript
-- **Vite**: Next-generation frontend tooling
-- **Tailwind CSS**: Utility-first CSS framework
-- **Recharts**: Composable charting library
-- **React Query**: Data fetching and state management
-- **React Hook Form**: Form handling and validation
-- **Framer Motion**: Animation library for smooth UI interactions
-- **React Hot Toast**: Beautiful and accessible notifications
+- **React 18**: Library untuk membangun antarmuka pengguna
+- **TypeScript**: JavaScript dengan tipe data yang ketat
+- **Vite**: Build tool dan development server yang cepat
+- **Tailwind CSS**: Framework CSS utility-first
+- **Recharts**: Library untuk visualisasi data
+- **React Table**: Tabel data yang dapat diedit
+- **React Hot Toast**: Notifikasi yang informatif
+- **Heroicons**: Koleksi ikon yang modern
 
-## 🚀 Getting Started
+## 🚀 Memulai
 
-### Prerequisites
+### Persyaratan Sistem
 
-- **Node.js 18+** - [Download](https://nodejs.org/)
-- **Python 3.11+** - [Download](https://www.python.org/downloads/)
-- **npm** (comes with Node.js) or **yarn** (recommended)
-- **Git** - [Download](https://git-scm.com/)
+- **Node.js 18+** - [Unduh](https://nodejs.org/)
+- **Python 3.11+** - [Unduh](https://www.python.org/downloads/)
+- **npm** (sudah termasuk dengan Node.js) atau **yarn** (direkomendasikan)
+- **Git** - [Unduh](https://git-scm.com/)
+- **GitHub CLI** (opsional) - Untuk deployment
 
 ### 🛠️ Backend Setup
 
@@ -85,9 +101,8 @@ A modern web application for managing business accounting tasks, generating fina
 
 5. **Start the backend server**
    ```bash
-   python main.py
+   uvicorn main:app --reload --host 0.0.0.0 --port 8000 
    ```
-   - API Documentation: `http://localhost:8000/docs`
    - API Base URL: `http://localhost:8000`
 
 ### 💻 Frontend Setup
@@ -101,10 +116,6 @@ A modern web application for managing business accounting tasks, generating fina
    ```bash
    # Using npm
    npm install
-   
-   # Or using yarn (recommended)
-   yarn install
-   ```
 
 3. **Environment Variables**
    Create a `.env` file in the `frontend` directory:
@@ -113,11 +124,8 @@ A modern web application for managing business accounting tasks, generating fina
    VITE_API_BASE_URL=http://localhost:8000
    
    # App Configuration
-   VITE_APP_NAME="Business Accounting App"
-   VITE_APP_VERSION=1.0.0
-   
-   # Feature Flags
-   VITE_ENABLE_ANALYTICS=false
+   NODE_ENV=development
+   DEBUG=true
    ```
 
 4. **Start the development server**
@@ -140,117 +148,98 @@ A modern web application for managing business accounting tasks, generating fina
    npm run preview
    ```
 
-## 📚 API Documentation
+### Endpoint yang Tersedia
 
-Once the backend is running, access the interactive API documentation:
+- `GET /` - Cek status API
+- `GET /health` - Health check endpoint
+- `GET /template` - Unduh template Excel
+- `POST /upload` - Unggah file data keuangan
+- `POST /save` - Simpan perubahan transaksi
+- `GET /reports/summary` - Ringkasan laporan keuangan
+- `GET /reports/monthly` - Laporan bulanan
+- `GET /reports/yearly` - Laporan tahunan
 
-- **Swagger UI**: `http://localhost:8000/docs`
-- **ReDoc**: `http://localhost:8000/redoc`
-
-### Available Endpoints
-
-- `GET /download-template` - Download Excel template
-- `POST /upload` - Upload financial data file
-- `POST /download-updated` - Download processed reports
-- `GET /reports/balance-sheet` - Get balance sheet data
-- `GET /reports/income-statement` - Get income statement data
-- `GET /reports/cash-flow` - Get cash flow data
-
-## 🏗️ Project Structure
+## 🏗️ Struktur Proyek
 
 ```
 Business-Accounting-App/
-├── frontend/               # Frontend React application
-│   ├── public/             # Static assets
+├── frontend/               # Aplikasi React frontend
+│   ├── public/             # Aset statis
 │   ├── src/
-│   │   ├── assets/         # Images, fonts, etc.
-│   │   ├── components/     # Reusable UI components
-│   │   │   ├── common/     # Common components (buttons, inputs, etc.)
-│   │   │   ├── layout/     # Layout components
-│   │   │   └── reports/    # Report-specific components
-│   │   ├── pages/          # Page components
-│   │   │   ├── UploadPage/   # File upload page
-│   │   │   └── ReportsPage/  # Reports display page
-│   │   ├── types/          # TypeScript type definitions
-│   │   ├── utils/          # Utility functions
-│   │   ├── App.tsx         # Main App component
-│   │   └── main.tsx        # Application entry point
-│   ├── .env                # Environment variables
-│   ├── index.html          # HTML template
-│   ├── package.json        # Dependencies and scripts
-│   ├── tsconfig.json       # TypeScript config
-│   └── vite.config.ts      # Vite configuration
+│   │   ├── @types/         # Definisi tipe TypeScript
+│   │   ├── components/     # Komponen UI yang dapat digunakan ulang
+│   │   │   ├── common/     # Komponen umum (tombol, input, dll.)
+│   │   │   ├── layout/     # Komponen tata letak
+│   │   │   └── reports/    # Komponen khusus laporan
+│   │   ├── contexts/       # React contexts
+│   │   ├── hooks/          # Custom hooks
+│   │   ├── pages/          # Halaman aplikasi
+│   │   │   ├── EditorPage/   # Halaman editor transaksi
+│   │   │   ├── UploadPage/   # Halaman unggah file
+│   │   │   └── ReportsPage/  # Halaman laporan
+│   │   ├── services/       # Layanan API
+│   │   ├── types/          # Definisi tipe TypeScript
+│   │   ├── utils/          # Fungsi utilitas
+│   │   ├── App.tsx         # Komponen App utama
+│   │   └── main.tsx        # Entry point aplikasi
+│   ├── .env                # Variabel lingkungan
+│   ├── index.html          # Template HTML
+│   ├── package.json        # Dependensi dan skrip
+│   ├── tsconfig.json       # Konfigurasi TypeScript
+│   ├── tailwind.config.js  # Konfigurasi Tailwind CSS
+│   └── vite.config.ts      # Konfigurasi Vite
 │
-├── .venv/                  # Python virtual environment
-├── .env                    # Environment variables
-├── main.py                 # FastAPI application
-├── generate_template.py     # Excel template generation
-├── requirements.txt         # Python dependencies
-├── README.md               # This file
-└── .gitignore              # Git ignore file
+├── excels/                 # File Excel yang diunggah
+├── output/                # File output yang dihasilkan
+├── .venv/                 # Lingkungan virtual Python
+├── .env                   # Variabel lingkungan
+├── main.py                # Aplikasi FastAPI
+├── generate_template.py    # Pembuatan template Excel
+├── requirements.txt        # Dependensi Python
+├── render.yaml            # Konfigurasi deployment Render
+├── README.md              # File ini
+└── .gitignore             # File git ignore
 ```
 
-## 🧪 Testing
 
-### Backend Tests
-```bash
-# Run all tests
-pytest
+## 🌐 Deployment
 
-# Run tests with coverage
-pytest --cov=.
-```
+Aplikasi ini dapat di-deploy dengan mudah menggunakan layanan berikut:
 
-### Frontend Tests
-```bash
-# Run unit tests
-npm test
+### Frontend (Vercel)
+1. Push kode ke repository GitHub
+2. Buat proyek baru di Vercel
+3. Hubungkan ke repository GitHub
+4. Atur variabel lingkungan yang diperlukan
+5. Deploy!
 
-# Run tests with coverage
-npm test -- --coverage
-```
+### Backend (Render)
+1. Push kode ke repository GitHub
+2. Buat layanan Web Service baru di Render
+3. Pilih repository GitHub
+4. Konfigurasi:
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - Environment Variables: Sesuaikan dengan kebutuhan
 
-## 🚀 Deployment
+## 👥 Berkontribusi
 
-### Backend Deployment
-1. Set up a production server (e.g., Nginx, Gunicorn)
-2. Configure environment variables for production
-3. Set up process management (PM2, Systemd)
+Kontribusi sangat diterima! Silakan ikuti langkah-langkah berikut:
 
-### Frontend Deployment
-1. Build the production bundle:
-   ```bash
-   npm run build
-   ```
-2. Deploy the `dist` folder to a static file server (Netlify, Vercel, S3, etc.)
+1. Fork repository ini
+2. Buat branch fitur baru (`git checkout -b fitur/namafitur`)
+3. Commit perubahan Anda (`git commit -m 'Menambahkan fitur baru'`)
+4. Push ke branch (`git push origin fitur/namafitur`)
+5. Buka Pull Request
 
-## 🤝 Contributing
+## 📄 Lisensi
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Proyek ini dilisensikan di bawah Lisensi MIT - lihat file [LICENSE](LICENSE) untuk detailnya.
 
-## 📄 License
+## 🙏 Ucapan Terima Kasih
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- [FastAPI](https://fastapi.tiangolo.com/)
-- [React](https://reactjs.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Recharts](https://recharts.org/)
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+- [FastAPI](https://fastapi.tiangolo.com/) - Framework web yang digunakan
+- [React](https://reactjs.org/) - Library frontend
+- [Tailwind CSS](https://tailwindcss.com/) - Untuk styling
+- [Vite](https://vitejs.dev/) - Untuk tooling frontend
+- [Recharts](https://recharts.org/) - Untuk visualisasi data

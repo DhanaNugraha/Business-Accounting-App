@@ -61,8 +61,8 @@
   - [x] Add/delete transaction functionality
   - [x] Save changes button
   - [x] Form validation
-  - [ ] Date range filtering
-  - [ ] Transaction search and filtering
+  - [x] Date range filtering
+  - [x] Transaction search and filtering
 - [x] Reports Page
   - [x] Financial summary cards
   - [x] Charts for income/expenses
@@ -138,25 +138,24 @@
   - [X] Add client-side validation feedback
 
 ## Pending Features
-- [ ] Add transaction search and filtering
-  - [ ] Search by description
-  - [ ] Filter by date range
-  - [ ] Filter by amount range
-  - [ ] Filter by category
+- [X] Add transaction search and filtering
+  - [X] Search by description
+  - [X] Filter by date range
+  - [X] Filter by amount range
+  - [X] Filter by category
 
-- [ ] Reporting
+- [X] Reporting
   - [X] Generate monthly reports
   - [X] Generate yearly reports
   - [X] Generate running balance reports
-  - [ ] Export reports to PDF/Excel
+  - [X] Export reports to PDF/Excel
   - [X] Visualize spending/income trends (line chart)
 
-- [ ] UI/UX Improvements
+- [X] UI/UX Improvements
   - [x] Improve form validation feedback
   - [x] Add success/error toast notifications
   - [x] Update status messages for clarity
   - [ ] Enhance mobile responsiveness
-  - [ ] Implement dark mode
   - [x] Improve reminder settings UI with collapsible panel
   - [x] Add visual feedback for active reminder state
   - [x] Localize UI text to Indonesian
@@ -209,9 +208,9 @@
 - [x] Make category input more user-friendly
 - [x] Prevent layout shifts during input
 - [x] Add visual feedback for form validation
-- [ ] Add tooltips for category management
+- [X] Add tooltips for category management
 - [ ] Improve mobile responsiveness for transaction editor
-- [ ] Add error boundaries for report components
+
 
 
 ## Deployment
@@ -220,18 +219,25 @@
   - [x] Configure .dockerignore
   - [x] Update CORS settings for production
 
-- [ ] Deployment to koyeb
+- [X] Deployment to koyeb
   - [X] Set up GitHub repository
-  - [ ] Configure koyeb web service
-  - [ ] Test production deployment
-  - [ ] Set up custom domain (optional)
-  - [ ] Configure environment variables
+  - [X] Configure koyeb web service
+  - [X] Test production deployment
+  - [X] Configure environment variables
 
 ## Future Enhancements
-- [ ] Implement category filtering and grouping
-- [ ] Add support for category-specific reporting
+- [X] Download report functionality
+- [X] Remove time from displaying in tanggal column (editor page)
+- [X] Add warning for double counting transactions
+- [X] Upgrade report page UI and details
+- [X] Export reports to PDF
+- [X] Improve UI for kelola kategori
+- [X] Remove sensitive info from being stored in local storage
+- [X] Enhance find transaction with better filtering and sorting
+- [X] Implement kelola kategori in editor
+- [X] Fix CORS for exporting Excel files
 - [X] Implement data validation rules per category
-- [ ] Frontend component tests
+- [X] Frontend component tests
   - [X] Transaction editor functionality
   - [x] Backend Monitoring
   - [x] Implement health check endpoint
@@ -247,12 +253,7 @@
   - [X] Full workflow: upload → edit → save → download
   - [X] Data integrity validation
 
-## Backlog
-- [ ] Cloud backup and sync
-- [ ] Recurring transactions
-- [ ] Receipt image upload and attachment
-- [ ] Multi-currency support
-- [ ] Budget tracking and alerts
+
 
 
 

@@ -75,3 +75,6 @@ Desktop.ini
 # === Tauri / Rust (if any leftover) ===
 /target/
 **/*.rs.bk
+
+
+notes.txt
