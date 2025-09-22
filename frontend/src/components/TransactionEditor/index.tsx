@@ -1,11 +1,35 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { TransactionItem } from '@/types';
-import { TrashIcon, PencilIcon, PlusIcon, ChartBarIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { 
+  TrashIcon, 
+  PencilIcon, 
+  ChartBarIcon, 
+  XMarkIcon, 
+  MagnifyingGlassIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  ArrowsUpDownIcon,
+  PlusIcon,
+  FunnelIcon,
+  ArrowPathIcon
+} from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { ConfirmationDialog } from '@/components/common/ConfirmationDialog';
 import { getDateValidationError } from '@/utils/validators';
 import { useAppContext } from '@/contexts/AppContext';
+
+type SortField = 'tanggal' | 'jumlah' | 'saldo_berjalan' | 'uraian' | 'kategori';
+type SortDirection = 'asc' | 'desc';
+
+interface FilterState {
+  searchQuery: string;
+  transactionType: 'all' | 'penerimaan' | 'pengeluaran';
+  startDate: string;
+  endDate: string;
+  sortField: SortField;
+  sortDirection: SortDirection;
+}
 
 interface SimpleFormData {
   id?: string;
@@ -24,14 +48,11 @@ interface TransactionEditorProps {
 
 export const TransactionEditor = ({ transactions, onSave, accountName }: TransactionEditorProps) => {
   const { state: { categories } } = useAppContext();
-  
-  // Debug effect to log category changes
-  useEffect(() => {
-    console.log('Categories updated:', categories);
-  }, [categories]);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const navigate = useNavigate();
   const [isAdding, setIsAdding] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
+  
   // Calculate running balance for transactions
   const transactionsWithRunningBalance = useMemo(() => {
     let runningBalance = 0;
@@ -47,6 +68,86 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
       };
     });
   }, [transactions]);
+  
+  // Filter and sort state
+  const [filters, setFilters] = useState<FilterState>({
+    searchQuery: '',
+    transactionType: 'all',
+    startDate: '',
+    endDate: '',
+    sortField: 'tanggal',
+    sortDirection: 'desc'
+  });
+
+  // Toggle sort direction
+  const toggleSort = useCallback((field: SortField) => {
+    setFilters(prev => ({
+      ...prev,
+      sortField: field,
+      sortDirection: prev.sortField === field && prev.sortDirection === 'asc' ? 'desc' : 'asc'
+    }));
+  }, []);
+
+  // Apply filters and sorting to transactions
+  const filteredAndSortedTransactions = useMemo(() => {
+    let result = [...transactionsWithRunningBalance];
+
+    // Apply search
+    if (filters.searchQuery) {
+      const query = filters.searchQuery.toLowerCase();
+      result = result.filter(tx => 
+        tx.uraian?.toLowerCase().includes(query) ||
+        Object.keys(tx.penerimaan || {}).some(k => k.toLowerCase().includes(query)) ||
+        Object.keys(tx.pengeluaran || {}).some(k => k.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply transaction type filter
+    if (filters.transactionType !== 'all') {
+      result = result.filter(tx => 
+        filters.transactionType === 'penerimaan' 
+          ? Object.keys(tx.penerimaan || {}).length > 0
+          : Object.keys(tx.pengeluaran || {}).length > 0
+      );
+    }
+
+    // Apply date range filter
+    if (filters.startDate) {
+      const start = new Date(filters.startDate);
+      result = result.filter(tx => new Date(tx.tanggal) >= start);
+    }
+    if (filters.endDate) {
+      const end = new Date(filters.endDate);
+      end.setHours(23, 59, 59, 999); // End of the day
+      result = result.filter(tx => new Date(tx.tanggal) <= end);
+    }
+
+    // Apply sorting
+    result.sort((a, b) => {
+      let aValue: any, bValue: any;
+      
+      switch (filters.sortField) {
+        case 'kategori':
+          aValue = Object.keys(a.penerimaan || a.pengeluaran || {})[0] || '';
+          bValue = Object.keys(b.penerimaan || b.pengeluaran || {})[0] || '';
+          break;
+        case 'tanggal':
+          aValue = new Date(a.tanggal);
+          bValue = new Date(b.tanggal);
+          break;
+        default:
+          aValue = a[filters.sortField as keyof typeof a];
+          bValue = b[filters.sortField as keyof typeof b];
+      }
+
+      if (aValue < bValue) return filters.sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return filters.sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return result;
+  }, [transactionsWithRunningBalance, filters]);
+
 
   const [editedTransactions, setEditedTransactions] = useState<TransactionItem[]>(transactionsWithRunningBalance);
   const [simpleForm, setSimpleForm] = useState<SimpleFormData>({
@@ -366,26 +467,252 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
     }
   }, [isAdding, editingId]);
 
+  // Filter and search controls component
+  const FilterControls = (): JSX.Element => {
+    const hasActiveFilters = filters.searchQuery || 
+                           filters.transactionType !== 'all' || 
+                           filters.startDate || 
+                           filters.endDate;
+
+    return (
+      <div className="bg-white/90 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm transition-all duration-200 hover:shadow-md overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h3 className="text-lg font-medium text-gray-900 flex items-center">
+            <FunnelIcon className="h-5 w-5 text-blue-500 mr-2" />
+            Filter Transaksi
+          </h3>
+        </div>
+        
+        <div className="p-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 items-end">
+            {/* Search Input */}
+            <div className="relative">
+              <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Cari Transaksi
+              </label>
+              <div className="relative rounded-lg shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  id="search"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  placeholder="Cari uraian/kategori..."
+                  value={filters.searchQuery}
+                  onChange={(e) => setFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {/* Transaction Type Filter */}
+            <div>
+              <label htmlFor="transactionType" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Jenis Transaksi
+              </label>
+              <div className="relative">
+                <select
+                  id="transactionType"
+                  className="appearance-none block w-full pl-3 pr-10 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  value={filters.transactionType}
+                  onChange={(e) => setFilters(prev => ({ ...prev, transactionType: e.target.value as any }))}
+                >
+                  <option value="all">Semua Transaksi</option>
+                  <option value="penerimaan">Penerimaan</option>
+                  <option value="pengeluaran">Pengeluaran</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                  <ChevronDownIcon className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* Date Range */}
+            <div className="relative">
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Dari Tanggal
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  id="startDate"
+                  className="block w-full pl-3 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  value={filters.startDate}
+                  onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="relative">
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Sampai Tanggal
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  id="endDate"
+                  className="block w-full pl-3 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                  value={filters.endDate}
+                  onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                  min={filters.startDate}
+                />
+              </div>
+            </div>
+
+            {/* Reset Filters Button */}
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={() => setFilters({
+                  searchQuery: '',
+                  transactionType: 'all',
+                  startDate: '',
+                  endDate: '',
+                  sortField: 'tanggal',
+                  sortDirection: 'desc'
+                })}
+                disabled={!hasActiveFilters}
+                className={`w-full inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  hasActiveFilters 
+                    ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm' 
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-transparent'
+                }`}
+              >
+                <ArrowPathIcon className="-ml-1 mr-2 h-4 w-4" />
+                Reset Filter
+              </button>
+            </div>
+          </div>
+          
+          {/* Active Filters Badges */}
+          {hasActiveFilters && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {filters.searchQuery && (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Pencarian: {filters.searchQuery}
+                  <button 
+                    onClick={() => setFilters(prev => ({ ...prev, searchQuery: '' }))}
+                    className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full bg-blue-200 hover:bg-blue-300 focus:outline-none"
+                  >
+                    <XMarkIcon className="h-3 w-3 text-blue-600" />
+                  </button>
+                </span>
+              )}
+              {filters.transactionType !== 'all' && (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Jenis: {filters.transactionType === 'penerimaan' ? 'Penerimaan' : 'Pengeluaran'}
+                  <button 
+                    onClick={() => setFilters(prev => ({ ...prev, transactionType: 'all' }))}
+                    className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full bg-green-200 hover:bg-green-300 focus:outline-none"
+                  >
+                    <XMarkIcon className="h-3 w-3 text-green-600" />
+                  </button>
+                </span>
+              )}
+              {filters.startDate && (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  Dari: {new Date(filters.startDate).toLocaleDateString('id-ID')}
+                  <button 
+                    onClick={() => setFilters(prev => ({ ...prev, startDate: '' }))}
+                    className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full bg-purple-200 hover:bg-purple-300 focus:outline-none"
+                  >
+                    <XMarkIcon className="h-3 w-3 text-purple-600" />
+                  </button>
+                </span>
+              )}
+              {filters.endDate && (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  Sampai: {new Date(filters.endDate).toLocaleDateString('id-ID')}
+                  <button 
+                    onClick={() => setFilters(prev => ({ ...prev, endDate: '' }))}
+                    className="ml-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full bg-yellow-200 hover:bg-yellow-300 focus:outline-none"
+                  >
+                    <XMarkIcon className="h-3 w-3 text-yellow-600" />
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // Render the transaction list
   const renderTransactionList = (): JSX.Element => (
     <div className="overflow-x-auto bg-white shadow-sm rounded-lg border border-gray-200">
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Tanggal
+            <th 
+              scope="col" 
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+              onClick={() => toggleSort('tanggal')}
+            >
+              <div className="flex items-center">
+                Tanggal
+                {filters.sortField === 'tanggal' ? (
+                  filters.sortDirection === 'asc' 
+                    ? <ChevronUpIcon className="ml-2 h-5 w-5 text-blue-600 font-bold" /> 
+                    : <ChevronDownIcon className="ml-2 h-5 w-5 text-blue-600 font-bold" />
+                ) : <ArrowsUpDownIcon className="ml-2 h-4 w-4 text-gray-400" />}
+              </div>
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Uraian
+            <th 
+              scope="col" 
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+              onClick={() => toggleSort('uraian')}
+            >
+              <div className="flex items-center">
+                Uraian
+                {filters.sortField === 'uraian' ? (
+                  filters.sortDirection === 'asc' 
+                    ? <ChevronUpIcon className="ml-2 h-5 w-5 text-blue-600 font-bold" /> 
+                    : <ChevronDownIcon className="ml-2 h-5 w-5 text-blue-600 font-bold" />
+                ) : <ArrowsUpDownIcon className="ml-2 h-4 w-4 text-gray-400" />}
+              </div>
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Kategori
+            <th 
+              scope="col" 
+              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+              onClick={() => toggleSort('kategori')}
+            >
+              <div className="flex items-center">
+                Kategori
+                {filters.sortField === 'kategori' ? (
+                  filters.sortDirection === 'asc' 
+                    ? <ChevronUpIcon className="ml-2 h-5 w-5 text-blue-600 font-bold" /> 
+                    : <ChevronDownIcon className="ml-2 h-5 w-5 text-blue-600 font-bold" />
+                ) : <ArrowsUpDownIcon className="ml-2 h-4 w-4 text-gray-400" />}
+              </div>
             </th>
-            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Jumlah
+            <th 
+              scope="col" 
+              className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+              onClick={() => toggleSort('jumlah')}
+            >
+              <div className="flex items-center justify-end">
+                Jumlah
+                {filters.sortField === 'jumlah' ? (
+                  filters.sortDirection === 'asc' 
+                    ? <ChevronUpIcon className="ml-2 h-5 w-5 text-blue-600 font-bold" /> 
+                    : <ChevronDownIcon className="ml-2 h-5 w-5 text-blue-600 font-bold" />
+                ) : <ArrowsUpDownIcon className="ml-2 h-4 w-4 text-gray-400" />}
+              </div>
             </th>
-            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Saldo Berjalan
+            <th 
+              scope="col" 
+              className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+              onClick={() => toggleSort('saldo_berjalan')}
+            >
+              <div className="flex items-center justify-end">
+                Saldo Berjalan
+                {filters.sortField === 'saldo_berjalan' ? (
+                  filters.sortDirection === 'asc' 
+                    ? <ChevronUpIcon className="ml-2 h-5 w-5 text-blue-600 font-bold" /> 
+                    : <ChevronDownIcon className="ml-2 h-5 w-5 text-blue-600 font-bold" />
+                ) : <ArrowsUpDownIcon className="ml-2 h-4 w-4 text-gray-400" />}
+              </div>
             </th>
             <th scope="col" className="relative px-6 py-3">
               <span className="sr-only">Aksi</span>
@@ -393,14 +720,14 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {editedTransactions.length === 0 ? (
+          {filteredAndSortedTransactions.length === 0 ? (
             <tr>
               <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
                 Tidak ada transaksi. Klik tombol "Tambah Transaksi" untuk menambahkan transaksi baru.
               </td>
             </tr>
           ) : (
-            editedTransactions.map((transaction) => {
+            filteredAndSortedTransactions.map((transaction) => {
               const isPenerimaan = Object.keys(transaction.penerimaan || {}).length > 0;
               const category = isPenerimaan 
                 ? Object.keys(transaction.penerimaan || {})[0] 
@@ -722,6 +1049,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
             <button
               onClick={() => setShowCategoryManager(false)}
               className="text-gray-500 hover:text-gray-700"
+              aria-label="Tutup manajer kategori"
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -753,6 +1081,7 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
               </div>
               <div className="pt-2">
                 <button
+                  type="button"
                   onClick={() => {
                     // Open the full category manager in a modal or new page
                     // This is a placeholder - you'll need to implement the actual modal or navigation
@@ -767,34 +1096,60 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
           </div>
         </div>
       )}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">Daftar Transaksi</h2>
-          <p className="text-sm text-gray-500">Kelola transaksi untuk akun: {accountName}</p>
-        </div>
-        <div className="flex items-center space-x-3">
-          {!isAdding && (
+      
+
+      <div className="bg-white/80 backdrop-blur-sm rounded-lg mb-6 transition-all duration-200 ease-in-out hover:shadow-sm">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="w-full sm:w-auto">
             <button
               type="button"
-              onClick={() => {
-                setIsAdding(true);
-                setSimpleForm({
-                  tanggal: new Date().toISOString().split('T')[0],
-                  uraian: '',
-                  jumlah: '',
-                  tipe: 'penerimaan',
-                  kategori: ''
-                });
-                setEditingId(null);
-              }}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              onClick={() => setShowFilters(prev => !prev)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
             >
-              <PlusIcon className="-ml-1 mr-2 h-4 w-4" />
-              Tambah Transaksi
+              <FunnelIcon className="h-4 w-4 mr-2 text-blue-500" />
+              <span>{showFilters ? 'Sembunyikan Filter' : 'Tampilkan Filter'}</span>
             </button>
-          )}
+          </div>
+          <div className="w-full sm:w-auto">
+            {!isAdding && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAdding(true);
+                  setSimpleForm({
+                    tanggal: new Date().toISOString().split('T')[0],
+                    uraian: '',
+                    jumlah: '',
+                    tipe: 'penerimaan',
+                    kategori: ''
+                  });
+                  setEditingId(null);
+                  // Smooth scroll to form when added
+                  setTimeout(() => {
+                    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  }, 50);
+                }}
+                className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+              >
+                <PlusIcon className="-ml-1 mr-2 h-4 w-4" />
+                <span>Tambah Transaksi</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
+
+      {showFilters && <FilterControls />}
+      
+      {isAdding && (
+        <div 
+          ref={formRef} 
+          className="mb-6 transition-all duration-300 ease-in-out transform hover:shadow-lg border-l-4 border-blue-500 pl-4 bg-blue-50/30 rounded-r-lg"
+          style={{ scrollMarginTop: '20px' }}
+        >
+          {renderTransactionForm()}
+        </div>
+      )}
 
       <ConfirmationDialog
         isOpen={deleteConfirm.isOpen}
@@ -805,16 +1160,6 @@ export const TransactionEditor = ({ transactions, onSave, accountName }: Transac
         confirmText="Hapus"
         cancelText="Batal"
       />
-
-      {isAdding && (
-        <div 
-          ref={formRef} 
-          className="mb-6 transition-all duration-300 ease-in-out transform hover:shadow-lg border-l-4 border-blue-500 pl-4 bg-blue-50/30 rounded-r-lg"
-          style={{ scrollMarginTop: '20px' }}
-        >
-          {renderTransactionForm()}
-        </div>
-      )}
 
       {editedTransactions.length > 0 && (
         <div className="space-y-4">

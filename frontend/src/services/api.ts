@@ -164,7 +164,7 @@ export const startHealthChecks = (onStatusChange?: (status: string) => void) => 
     // If backend becomes ready, switch to slower interval (5 minutes)
     else if (isBackendReady && healthCheckInterval) {
       clearInterval(healthCheckInterval);
-      healthCheckInterval = setInterval(checkAndUpdateStatus, 5 * 60 * 1000); // 5 minutes
+      healthCheckInterval = setInterval(checkAndUpdateStatus, 14 * 60 * 1000); // 14 minutes
     }
   };
   

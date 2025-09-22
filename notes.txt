@@ -40,19 +40,20 @@ export report
 
 find transaction and filtering, sorting
 
-bisa bikin multiple kategori tanpa transaksi
-
-download report
-
-report laba/rugi bersih per bulan (next month should start with previous month's balance) done (changed per month to bar charts) (should also put this in writing)
-
-
-cors save gagal
-
-
 mobile view
 
 flag double counting
+
+report laba/rugi bersih per bulan (next month should start with previous month's balance) done (changed per month to bar charts) (should also put this in writing)
+
+download report
+
+
+
+bisa bikin multiple kategori tanpa transaksi (done)
+cors save gagal done
+
+
 
 
 mobile interface
