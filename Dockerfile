@@ -8,10 +8,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PORT=10000
 
-# Install system dependencies
+# Install system dependencies and locales
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    locales \
+    && echo "id_ID.UTF-8 UTF-8" > /etc/locale.gen \
+    && locale-gen \
     && rm -rf /var/lib/apt/lists/*
+
+# Set default locale
+ENV LANG=id_ID.UTF-8 \
+    LC_ALL=id_ID.UTF-8
 
 # Set work directory
 WORKDIR /app

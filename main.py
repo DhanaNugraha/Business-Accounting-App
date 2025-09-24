@@ -4,8 +4,6 @@ import tempfile
 from datetime import datetime
 import locale
 
-# Set locale to Indonesian for month names
-locale.setlocale(locale.LC_TIME, 'id_ID.UTF-8')
 from typing import List, Dict, Optional
 
 # Third-party imports
@@ -19,6 +17,9 @@ from pydantic import BaseModel
 
 # Local imports
 import generate_template
+
+# Set locale to Indonesian for month names
+locale.setlocale(locale.LC_TIME, "id_ID.UTF-8")
 
 # Determine if we're in production (running in Docker)
 IS_PRODUCTION = os.environ.get("NODE_ENV") == "production"
