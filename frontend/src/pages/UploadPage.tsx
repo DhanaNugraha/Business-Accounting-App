@@ -237,14 +237,14 @@ const UploadPage = () => {
         const descCol = headers.findIndex(h => h.toLowerCase() === 'uraian');
         const jumlahCol = headers.findIndex(h => h.toLowerCase() === 'jumlah');
         
-        // Find all Penerimaan_* and Pengeluaran_* columns
+        // Find all Penerimaan_* and Pengeluaran_* columns (case-insensitive)
         const penerimaanCols = headers
-          .map((h, i) => (h.toLowerCase().startsWith('penerimaan_') ? i : -1))
-          .filter(i => i !== -1);
+          .map((h, i) => (h.toLowerCase().startsWith('penerimaan_') ? { index: i, original: h } : null))
+          .filter((item): item is { index: number, original: string } => item !== null);
           
         const pengeluaranCols = headers
-          .map((h, i) => (h.toLowerCase().startsWith('pengeluaran_') ? i : -1))
-          .filter(i => i !== -1);
+          .map((h, i) => (h.toLowerCase().startsWith('pengeluaran_') ? { index: i, original: h } : null))
+          .filter((item): item is { index: number, original: string } => item !== null);
         
         // Skip if required columns are missing
         if (dateCol === -1 || descCol === -1 || jumlahCol === -1) {
@@ -277,20 +277,22 @@ const UploadPage = () => {
           
           // Process Penerimaan columns
           const penerimaan: Record<string, number> = {};
-          for (const col of penerimaanCols) {
+          for (const { index: col, original: header } of penerimaanCols) {
             const value = getNumberValue(col);
             if (value > 0) {
-              const category = headers[col].replace(/^penerimaan_/i, '');
+              // Preserve the original category name case after the prefix
+              const category = header.substring(header.indexOf('_') + 1);
               penerimaan[category] = value;
             }
           }
           
           // Process Pengeluaran columns
           const pengeluaran: Record<string, number> = {};
-          for (const col of pengeluaranCols) {
+          for (const { index: col, original: header } of pengeluaranCols) {
             const value = getNumberValue(col);
             if (value > 0) {
-              const category = headers[col].replace(/^pengeluaran_/i, '');
+              // Preserve the original category name case after the prefix
+              const category = header.substring(header.indexOf('_') + 1);
               pengeluaran[category] = value;
             }
           }

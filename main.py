@@ -2,6 +2,10 @@
 import os
 import tempfile
 from datetime import datetime
+import locale
+
+# Set locale to Indonesian for month names
+locale.setlocale(locale.LC_TIME, 'id_ID.UTF-8')
 from typing import List, Dict, Optional
 
 # Third-party imports
@@ -381,8 +385,28 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
                         running_balance + total_penerimaan - total_pengeluaran
                     )
 
+                    # Format the date as DD Month YYYY (e.g., 24 September 2024)
+                    tanggal = getattr(tx, "tanggal", "")
+                    if tanggal:
+                        try:
+                            # Parse the date and format it
+                            if isinstance(tanggal, str):
+                                date_obj = datetime.strptime(tanggal, "%Y-%m-%d")
+                            else:
+                                date_obj = tanggal
+                            # Format as text to preserve the format in Excel with Indonesian month names
+                            tanggal = date_obj.strftime("%d %B %Y").lower()
+                            # Capitalize first letter of month name
+                            tanggal = tanggal.split()
+                            if len(tanggal) > 1:
+                                tanggal[1] = tanggal[1].capitalize()
+                                tanggal = ' '.join(tanggal)
+                        except (ValueError, TypeError):
+                            # If date is not in expected format, convert to string
+                            tanggal = str(tanggal) if tanggal else ""
+                            
                     row = {
-                        "Tanggal": getattr(tx, "tanggal", ""),
+                        "Tanggal": tanggal,
                         "Uraian": getattr(tx, "uraian", ""),
                         "Jumlah": getattr(tx, "jumlah", 0.0),
                         "Saldo Berjalan": running_balance,  # Use the calculated running balance
@@ -457,7 +481,28 @@ def _create_excel_file(data: TemplateData, output_path: str) -> None:
 
                 # Write the data rows first
                 for _, row in df.iterrows():
-                    ws.append(row.tolist())
+                    # Convert date to string to preserve formatting
+                    formatted_row = []
+                    for idx, value in enumerate(row):
+                        if columns_order[idx] == 'Tanggal' and pd.notna(value):
+                            try:
+                                if isinstance(value, str):
+                                    date_obj = datetime.strptime(value, "%Y-%m-%d")
+                                else:
+                                    date_obj = value
+                                # Format with Indonesian month names and proper capitalization
+                                formatted_date = date_obj.strftime("%d %B %Y").lower()
+                                # Capitalize first letter of month name
+                                formatted_date = formatted_date.split()
+                                if len(formatted_date) > 1:
+                                    formatted_date[1] = formatted_date[1].capitalize()
+                                    formatted_date = ' '.join(formatted_date)
+                                formatted_row.append(formatted_date)
+                            except (ValueError, TypeError):
+                                formatted_row.append(str(value) if value is not None else "")
+                        else:
+                            formatted_row.append(value)
+                    ws.append(formatted_row)
 
                 # Now apply header formatting after all data is written
                 for col_num, column_title in enumerate(columns_order, 1):

@@ -406,7 +406,7 @@ const ReportsPage: React.FC = () => {
                     />
                     <Bar 
                       dataKey="income" 
-                      name="Pendapatan" 
+                      name="Penerimaan" 
                       fill="#10b981"
                       radius={[4, 4, 0, 0]}
                     />
@@ -435,7 +435,7 @@ const ReportsPage: React.FC = () => {
                           {tab === 'monthly' ? 'Bulan' : 'Tahun'}
                         </th>
                         <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Pendapatan
+                          Penerimaan
                         </th>
                         <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Pengeluaran
@@ -495,7 +495,7 @@ const ReportsPage: React.FC = () => {
 
   // Render bar chart for income/expense by category
   const renderBarChart = (title: string, data: ChartDataPoint[]) => {
-    const barColor = title.includes('Pendapatan') ? '#10b981' : '#ef4444';
+    const barColor = title.includes('Penerimaan') ? '#10b981' : '#ef4444';
     return (
       <div className="bg-white p-6 rounded-lg shadow">
         <h3 className="text-lg font-medium text-gray-900 mb-4">{title}</h3>
@@ -765,7 +765,7 @@ const ReportsPage: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-500">Tidak ada data pendapatan</p>
+                  <p className="text-sm text-gray-500">Tidak ada data penerimaan</p>
                 )}
               </div>
               <div>
@@ -801,7 +801,7 @@ const ReportsPage: React.FC = () => {
           {/* Category Charts */}
           <div id="report-section-category-charts" className="grid grid-cols-1 gap-6">
             <h2 className="text-xl font-bold text-gray-900">Grafik Kategori</h2>
-            {renderBarChart('Pendapatan per Kategori', incomeData)}
+            {renderBarChart('Penerimaan per Kategori', incomeData)}
             {renderBarChart('Pengeluaran per Kategori', expenseData)}
           </div>
 
@@ -955,12 +955,12 @@ const ReportsPage: React.FC = () => {
           <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
               <h3 className="text-lg leading-6 font-medium text-gray-900">Laporan Laba Rugi</h3>
-              <p className="mt-1 max-w-2xl text-sm text-gray-500">Ringkasan pendapatan dan pengeluaran</p>
+              <p className="mt-1 max-w-2xl text-sm text-gray-500">Ringkasan penerimaan dan pengeluaran</p>
             </div>
             <div className="px-4 py-5 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div>
-                  <h4 className="text-md font-medium text-gray-900 mb-4">Pendapatan</h4>
+                  <h4 className="text-md font-medium text-gray-900 mb-4">Penerimaan</h4>
                   {incomeData.length > 0 ? (
                     <div className="space-y-2">
                       {incomeData.map((item) => (
@@ -973,7 +973,7 @@ const ReportsPage: React.FC = () => {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500">Tidak ada data pendapatan</p>
+                    <p className="text-sm text-gray-500">Tidak ada data penerimaan</p>
                   )}
                 </div>
                 <div>
@@ -1008,7 +1008,7 @@ const ReportsPage: React.FC = () => {
           </div>
           {/* Category Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {renderBarChart('Pendapatan per Kategori', incomeData)}
+            {renderBarChart('Penerimaan per Kategori', incomeData)}
             {renderBarChart('Pengeluaran per Kategori', expenseData)}
           </div>
 
