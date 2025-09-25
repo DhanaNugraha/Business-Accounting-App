@@ -452,15 +452,15 @@ const ReportsPage: React.FC = () => {
                             {item.period}
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap text-sm text-right text-green-600">
-                            {formatCurrency(item.income, true)}
+                            {formatCurrency(item.income, false)}
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap text-sm text-right text-red-600">
-                            {formatCurrency(item.expense, true)}
+                            {formatCurrency(item.expense, false)}
                           </td>
                           <td className={`px-3 py-2 whitespace-nowrap text-sm text-right font-medium ${
                             item.balance >= 0 ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {item.balance >= 0 ? '' : '-'}{formatCurrency(Math.abs(item.balance), true)}
+                            {item.balance >= 0 ? '' : '-'}{formatCurrency(Math.abs(item.balance), false)}
                           </td>
                         </tr>
                       ))}
@@ -470,16 +470,16 @@ const ReportsPage: React.FC = () => {
                           Total
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-sm text-right font-medium text-green-600">
-                          {formatCurrency(data.reduce((sum: number, item: any) => sum + item.income, 0), true)}
+                          {formatCurrency(data.reduce((sum: number, item: any) => sum + item.income, 0), false)}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-sm text-right font-medium text-red-600">
-                          {formatCurrency(data.reduce((sum: number, item: any) => sum + item.expense, 0), true)}
+                          {formatCurrency(data.reduce((sum: number, item: any) => sum + item.expense, 0), false)}
                         </td>
                         <td className={`px-3 py-2 whitespace-nowrap text-sm text-right font-medium ${
                           data.reduce((sum: number, item: any) => sum + item.balance, 0) >= 0 ? 'text-green-600' : 'text-red-600'
                         }`}>
                           {data.reduce((sum: number, item: any) => sum + item.balance, 0) >= 0 ? '' : '-'}
-                          {formatCurrency(Math.abs(data.reduce((sum: number, item: any) => sum + item.balance, 0)), true)}
+                          {formatCurrency(Math.abs(data.reduce((sum: number, item: any) => sum + item.balance, 0)), false)}
                         </td>
                       </tr>
                     </tbody>
@@ -599,7 +599,7 @@ const ReportsPage: React.FC = () => {
       
       // Get all report sections in the specified order
       const sections = [
-        { id: 'income-statement', title: 'Laporan Laba Rugi' },
+        { id: 'income-statement', title: 'Laporan Saldo' },
         { id: 'category-charts', title: 'Grafik Kategori' },
         { id: 'monthly', title: 'Laporan Bulanan' },
         { id: 'yearly', title: 'Laporan Tahunan' },
@@ -749,7 +749,7 @@ const ReportsPage: React.FC = () => {
         <div className="space-y-12">
           {/* Income Statement Section */}
           <div id="report-section-income-statement" className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Laporan Laba Rugi</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-6">Laporan Saldo</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
                 <h4 className="text-md font-medium text-gray-900 mb-4">Pendapatan</h4>
@@ -788,7 +788,7 @@ const ReportsPage: React.FC = () => {
             </div>
             <div className="mt-8 pt-4 border-t border-gray-200">
               <div className="flex justify-between">
-                <span className="text-lg font-medium">Laba/Rugi Bersih</span>
+                <span className="text-lg font-medium">Saldo Akhir</span>
                 <span className={`text-lg font-bold ${
                   reports.income_statement.net_income >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}>
@@ -951,10 +951,10 @@ const ReportsPage: React.FC = () => {
         </div>
 
         <div ref={reportRef} className="grid grid-cols-1 gap-6">
-          {/* Laporan Laba Rugi */}
+          {/* Laporan Saldo */}
           <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">Laporan Laba Rugi</h3>
+              <h3 className="text-lg leading-6 font-medium text-gray-900">Laporan Saldo</h3>
               <p className="mt-1 max-w-2xl text-sm text-gray-500">Ringkasan penerimaan dan pengeluaran</p>
             </div>
             <div className="px-4 py-5 sm:p-6">
@@ -996,7 +996,7 @@ const ReportsPage: React.FC = () => {
               </div>
               <div className="mt-8 pt-4 border-t border-gray-200">
                 <div className="flex justify-between">
-                  <span className="text-lg font-medium">Laba/Rugi Bersih</span>
+                  <span className="text-lg font-medium">Saldo Akhir</span>
                   <span className={`text-lg font-bold ${
                     reports.income_statement.net_income >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
