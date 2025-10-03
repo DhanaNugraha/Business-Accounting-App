@@ -339,6 +339,16 @@ const UploadPage = () => {
             
             // Try parsing as date string (DD/MM/YYYY or other formats)
             if (typeof value === 'string') {
+              // Handle DD Month YYYY format (e.g., 01 September 2025)
+              const monthNameMatch = value.match(/^(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})$/);
+              if (monthNameMatch) {
+                const [_, day, monthName, year] = monthNameMatch;
+                // Create date in UTC to avoid timezone issues
+                const monthIndex = new Date(Date.parse(monthName + ' 1, 2012')).getMonth();
+                const date = new Date(Date.UTC(parseInt(year), monthIndex, parseInt(day)));
+                return formatLocalDate(date);
+              }
+              
               // Handle DD/MM/YYYY format
               const parts = value.split(/[-/.]/);
               if (parts.length === 3) {
@@ -351,27 +361,40 @@ const UploadPage = () => {
                   month -= 1; // JavaScript months are 0-indexed
                 } else if (parts[1].length > 2) {
                   // Handle case where year might be in the middle (e.g., MM/YYYY/DD)
-                  return formatLocalDate(new Date(value));
+                  const parsedDate = new Date(value);
+                  return formatLocalDate(new Date(Date.UTC(
+                    parsedDate.getFullYear(),
+                    parsedDate.getMonth(),
+                    parsedDate.getDate()
+                  )));
                 } else {
                   // Assume DD/MM/YYYY format (common in Indonesia)
                   [day, month, year] = parts.map(Number);
                   month -= 1; // JavaScript months are 0-indexed
                 }
                 
-                // Create date in local timezone without time component
-                const date = new Date(year, month, day);
+                // Create date in UTC to avoid timezone issues
+                const date = new Date(Date.UTC(year, month, day));
                 return formatLocalDate(date);
               }
               
               // Fallback to standard date parsing
               const parsedDate = new Date(value);
               if (!isNaN(parsedDate.getTime())) {
-                return formatLocalDate(parsedDate);
+                // Convert to UTC date to avoid timezone issues
+                const utcDate = new Date(Date.UTC(
+                  parsedDate.getFullYear(),
+                  parsedDate.getMonth(),
+                  parsedDate.getDate()
+                ));
+                return formatLocalDate(utcDate);
               }
             }
             
-            // Fallback to current date
-            return formatLocalDate(new Date());
+            // Fallback to current date in UTC
+            const now = new Date();
+            const utcNow = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+            return formatLocalDate(utcNow);
             
             // Helper function to format date as YYYY-MM-DD in local timezone
             function formatLocalDate(date: Date): string {
