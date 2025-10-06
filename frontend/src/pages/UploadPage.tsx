@@ -315,38 +315,85 @@ const UploadPage = () => {
           
           // Helper function to parse Excel date (either serial number or formatted string)
           const parseExcelDate = (value: any): string => {
-            if (!value && value !== 0) return formatLocalDate(new Date());
+            console.log('Original date value from Excel:', value, 'Type:', typeof value);
+            
+            if (!value && value !== 0) {
+              console.log('No date value provided, using current date');
+              return formatLocalDate(new Date());
+            }
             
             // If it's already a date string in YYYY-MM-DD format
             if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+              console.log('Date is already in YYYY-MM-DD format:', value);
               return value;
             }
             
             // If it's an Excel serial date number (days since 1899-12-30)
             if (typeof value === 'number' && value > 0) {
+              console.log('Excel serial date number detected:', value);
               // Create a date object for the Excel epoch (December 30, 1899)
               const excelEpoch = new Date('1899-12-30T00:00:00.000Z');
+              console.log('Excel epoch date:', excelEpoch.toISOString());
+              
               // Add the number of days (value) to the epoch
               const date = new Date(excelEpoch.getTime() + Math.round((value - 1) * 86400000));
+              console.log('Date after adding days:', date.toISOString());
               
               // Handle Excel's incorrect leap year in 1900
               if (value >= 60) {
+                console.log('Adjusting for Excel\'s 1900 leap year bug');
                 date.setDate(date.getDate() + 1);
+                console.log('Date after leap year adjustment:', date.toISOString());
               }
               
-              return formatLocalDate(date);
+              const formattedDate = formatLocalDate(date);
+              console.log('Final formatted date:', formattedDate);
+              return formattedDate;
             }
             
             // Try parsing as date string (DD/MM/YYYY or other formats)
             if (typeof value === 'string') {
-              // Handle DD Month YYYY format (e.g., 01 September 2025)
+              // Handle DD Month YYYY format (e.g., 01 September 2025 or 15 Mei 2025)
               const monthNameMatch = value.match(/^(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})$/);
               if (monthNameMatch) {
                 const [_, day, monthName, year] = monthNameMatch;
-                // Create date in UTC to avoid timezone issues
-                const monthIndex = new Date(Date.parse(monthName + ' 1, 2012')).getMonth();
+                console.log(`Parsing date with month name: ${day} ${monthName} ${year}`);
+                
+                // Map of Indonesian month names to month numbers (0-11)
+                const indonesianMonths: Record<string, number> = {
+                  'januari': 0, 'februari': 1, 'maret': 2, 'april': 3, 'mei': 4, 'juni': 5,
+                  'juli': 6, 'agustus': 7, 'september': 8, 'oktober': 9, 'november': 10, 'desember': 11
+                };
+                
+                // Try to get month index from Indonesian names first (case-insensitive)
+                const lowerMonthName = monthName.toLowerCase();
+                let monthIndex = indonesianMonths[lowerMonthName];
+                
+                // If not found in Indonesian months, try parsing with default Date
+                if (monthIndex === undefined) {
+                  console.log('Month not found in Indonesian months, trying default parsing');
+                  try {
+                    monthIndex = new Date(Date.parse(monthName + ' 1, 2012')).getMonth();
+                  } catch (e) {
+                    console.error('Failed to parse month:', e);
+                    // Fallback to current month if parsing fails
+                    monthIndex = new Date().getMonth();
+                  }
+                }
+                
                 const date = new Date(Date.UTC(parseInt(year), monthIndex, parseInt(day)));
-                return formatLocalDate(date);
+                
+                // Validate the date
+                if (isNaN(date.getTime())) {
+                  console.error(`Invalid date created from: ${day}/${monthIndex + 1}/${year}`);
+                  // Fallback to current date if date is invalid
+                  return formatLocalDate(new Date());
+                }
+                
+                console.log('Parsed date from month name:', date.toISOString());
+                const formattedDate = formatLocalDate(date);
+                console.log('Formatted date from month name:', formattedDate);
+                return formattedDate;
               }
               
               // Handle DD/MM/YYYY format
@@ -392,16 +439,24 @@ const UploadPage = () => {
             }
             
             // Fallback to current date in UTC
+            console.log('Using fallback to current date');
             const now = new Date();
             const utcNow = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-            return formatLocalDate(utcNow);
+            console.log('Fallback date (UTC):', utcNow.toISOString());
+            const formattedDate = formatLocalDate(utcNow);
+            console.log('Formatted fallback date:', formattedDate);
+            return formattedDate;
             
             // Helper function to format date as YYYY-MM-DD in local timezone
             function formatLocalDate(date: Date): string {
+              console.log('Formatting date (input):', date.toISOString());
+              // Get local date components to handle timezone correctly
               const year = date.getFullYear();
               const month = String(date.getMonth() + 1).padStart(2, '0');
               const day = String(date.getDate()).padStart(2, '0');
-              return `${year}-${month}-${day}`;
+              const formatted = `${year}-${month}-${day}`;
+              console.log('Formatted date (YYYY-MM-DD):', formatted);
+              return formatted;
             }
           };
           
