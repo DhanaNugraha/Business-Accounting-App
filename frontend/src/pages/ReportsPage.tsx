@@ -88,6 +88,8 @@ const ReportsPage: React.FC = () => {
   const [exportMode, setExportMode] = useState<boolean>(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   const reportRef = useRef<HTMLDivElement>(null);
 
   // Get the currently selected account data
@@ -96,7 +98,31 @@ const ReportsPage: React.FC = () => {
     return state.accounts.find(acc => acc.name === selectedAccount) || null;
   }, [selectedAccount, state.accounts]);
 
-  // Generate reports when the selected account changes
+  const filteredAccountData = useMemo<AccountData | null>(() => {
+    if (!currentAccountData) return null;
+    if (!startDate && !endDate) return currentAccountData;
+
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+
+    if (end) {
+      end.setHours(23, 59, 59, 999);
+    }
+
+    const transactions = currentAccountData.transactions.filter(transaction => {
+      const txDate = new Date(transaction.tanggal);
+      const afterStart = start ? txDate >= start : true;
+      const beforeEnd = end ? txDate <= end : true;
+      return afterStart && beforeEnd;
+    });
+
+    return {
+      ...currentAccountData,
+      transactions
+    };
+  }, [currentAccountData, startDate, endDate]);
+
+  // Generate reports when the selected account or filters change
   useEffect(() => {
     const generateReports = (account: AccountData | null): ReportData | null => {
       if (!account) return null;
@@ -223,8 +249,8 @@ const ReportsPage: React.FC = () => {
       return reportsData;
     };
 
-    setReports(generateReports(currentAccountData));
-  }, [currentAccountData]);
+    setReports(generateReports(filteredAccountData));
+  }, [filteredAccountData]);
 
   // Set initial selected account
   useEffect(() => {
@@ -907,6 +933,48 @@ const ReportsPage: React.FC = () => {
                 selectedAccountId={selectedAccount}
                 onSelect={handleAccountSelect}
               />
+            </div>
+            <div className="w-full sm:w-auto">
+              <div className="bg-white p-3 rounded-md border border-gray-300">
+                <p className="text-xs font-medium text-gray-600 mb-2">Filter Tanggal</p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex flex-col flex-1">
+                    <label htmlFor="start-date" className="text-xs text-gray-500 mb-1">Dari</label>
+                    <input
+                      id="start-date"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div className="flex flex-col flex-1">
+                    <label htmlFor="end-date" className="text-xs text-gray-500 mb-1">Sampai</label>
+                    <input
+                      id="end-date"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                  }}
+                  disabled={!startDate && !endDate}
+                  className={`mt-3 w-full text-xs font-medium px-3 py-2 rounded-md border ${
+                    startDate || endDate
+                      ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                      : 'border-transparent text-gray-400 cursor-not-allowed bg-gray-100'
+                  }`}
+                >
+                  Reset Tanggal
+                </button>
+              </div>
             </div>
             <div className="flex items-center gap-2 bg-white p-2 rounded-md border border-gray-300">
               <span className="text-sm text-gray-700 whitespace-nowrap">Mode Ekspor</span>
